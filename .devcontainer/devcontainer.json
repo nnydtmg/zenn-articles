@@ -1,0 +1,59 @@
+// See https://containers.dev/implementors/json_reference/ for configuration reference
+{
+	"name": "Zenn Writing Environment",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+  "remoteUser": "node",
+  
+  // コンテナ作成時にPRHのルールをnpmディレクトリからコピー（同名はスキップ）
+  "postCreateCommand": "cp -rn /usr/local/lib/node_modules/textlint-rule-prh/node_modules/prh/prh-rules/*/ ./prh-rules/",
+  
+  // コンテナ起動後にバックグラウンドでプレビューサーバ起動
+  "postStartCommand": "nohup bash -c 'zenn &' > /dev/null",
+  
+  // プレビューサーバ起動時にシンプルブラウザを起動する
+  "portsAttributes": {
+    "8000": {
+      "label": "Preview",
+      "onAutoForward": "openPreview"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      // コンテナ内で使用する Extension を指定
+      "extensions": [
+      "taichi.vscode-textlint",
+      "adrianwilczynski.terminal-commands"
+      ],
+
+      // コンテナ内での追加設定
+      "settings": {
+        //---------- taichi.vscode-textlint ----------
+        "textlint": {
+          // 設定ファイルパス
+          "configPath": ".textlintrc.jsonc",
+          // 保存時に校正エラーを自動修正する
+          "autoFixOnSave": true,
+          // 構成チェックの実行タイミング（"onSave"：保存時、"onType"：入力時）
+          "run": "onType",
+          // 校正対象のファイル言語モード
+          "languages": ["markdown", "plaintext"]
+        },
+        
+        //---------- adrianwilczynski.terminal-commands ----------
+        "runTerminalCommand.commands": [
+          { "name": "新しい記事を作成",
+            "command": "zenn new:article",
+            "auto": true
+          },
+          { "name": "新しい本を作成",
+            "command": "zenn new:book",
+            "auto": true
+          }
+        ]
+	    }
+    }
+  }
+}

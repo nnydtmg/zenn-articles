@@ -1,0 +1,14 @@
+{
+  "filters": {},
+  "rules": {
+    "preset-ja-technical-writing": true,
+    "preset-ja-spacing": true,
+    "prh": {
+      "rulePaths": ["/usr/local/lib/node_modules/textlint-rule-prh/node_modules/prh/prh-rules/media/techbooster.yml"]
+    },
+    "@proofdict/proofdict": {
+      // URLはご自分のものに差し替えてください
+      "dictURL": "https://roppi.github.io/proof-dictionary/"
+    }
+  }
+}
