@@ -2,7 +2,7 @@
 title: "Security-JAWSのハンズオンに参加してみた"
 emoji: "👋"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["aws","CDK","Security"]
+topics: ["aws","CDK","Security","container"]
 published: true
 ---
 
@@ -26,7 +26,8 @@ OSSの脆弱性チェックツールを用いて修正点を見つけながら�
 
 # セミナー概要
 
-セミナー資料は[こちら](https://speakerdeck.com/kanamasa/ship-securely)にアップされています。
+セミナー資料はこちら。
+@[speakerdeck](0105788bc38e41a185d4e996cf6276df)
 
 まずはセキュリティの考え方についてAWSの金森さんから講義がありました。
 ポイントとしては以下です。
