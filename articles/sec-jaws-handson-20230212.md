@@ -87,6 +87,11 @@ SASTと比較して誤検知を除去していくことで、自動化プロセ�
 
 
 
+# ハンズオン概要
+
+AWS CDKを利用して、Code Pipelineを実装し、そのパイプラインの中で ***SAST*** ,***SCA***,***Lisence Check***を実施したコンテナをデプロイします。
+今回はSASTツールとして ***SonarQube Server*** 、DASTツールとして ***OWSAP Zap***を利用します。どちらもOSSのものになります。
+
 
 
 
