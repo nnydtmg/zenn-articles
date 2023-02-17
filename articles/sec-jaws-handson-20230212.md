@@ -1,6 +1,6 @@
 ---
 title: "Security-JAWSのハンズオンに参加してみた"
-emoji: ""
+emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","CDK","Security","container"]
 published: true
