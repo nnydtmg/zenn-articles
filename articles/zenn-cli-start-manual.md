@@ -3,7 +3,7 @@ title: "Zennをローカルで執筆できるようにしてみる"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: [docker,Tech,Zenn,VSCode]
-published: false
+published: true
 ---
 
 # Zennをローカルで執筆するために必要なこと
