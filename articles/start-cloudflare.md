@@ -2,8 +2,8 @@
 title: "Cloudflareに入門してみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["cloudflare","入門"]
-published: false
+topics: ["Cloudflare","cloudflare","Tech","入門"]
+published: true
 ---
 
 # Cloudflareとは
