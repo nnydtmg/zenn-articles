@@ -17,16 +17,24 @@ published: false
 今回触る範囲は[Serverkess Meetup Japan Virtual #26](https://serverless.connpass.com/event/274263/)でエヴァンジェリストの亀田さんがデモで見せてくれていた範囲です。
 気になる方は、Youtubeで公開されているのでぜひご覧ください。
 
+
 ## 触るサービスに関して
 
-ドメイン以外の部分で利用するサービスについてまとめてみます。
-
-## Workers
+ドメイン以外の部分で利用するサービスについて簡単にまとめてみます。
 
 
+### Workers
 
-## KV
+Cloudflareがグローバルに展開するエッジ環境でJavaScript等を実行する事ができるサーバレスコンピューティングサービス。
+AWSでいうAWS Lambda@Edgeのようなものですが、コールドスタートが一切ないので、高速に利用することができる。
+公式ドキュメントは[こちら](https://developers.cloudflare.com/workers/)。
 
+
+### KV
+
+サーバレスKey-Valueストアで275以上のグローバル拠点で利用可能なサービス。
+AWSでいうDynamoDBだが、自動でグローバルに結果整合性を保った状態で展開される。
+公式ドキュメントは[こちら](https://developers.cloudflare.com/workers/runtime-apis/kv/)。
 
 
 ## アカウント作成
@@ -78,37 +86,66 @@ Workersとは、Cloudflareが提供するコンテナ基盤で、コールドス
 デプロイはとても簡単です。
 左ペインのWorkersから「サービスを作成」をクリックします。
 
-<!-- 07 -->
+|![](https://storage.googleapis.com/zenn-user-upload/adae24583984-20230302.png)|
+|:--|
 
 サービス名を任意に入力して、HTTPハンドラで簡単なFetchが出来るようにします。
 サービスの作成をクリックするだけで、デプロイされます。
 
-<!-- 08 -->
+|![](https://storage.googleapis.com/zenn-user-upload/f3e5320ac8bd-20230302.png)|
+|:--|
 
 確認すると、、、出来てます。簡単すぎますね。。
 
-<!-- 09 -->
+|![](https://storage.googleapis.com/zenn-user-upload/cf1f7cc7b729-20230302.png)|
+|:--|
 
 プレビューのドメインをクリックすると、実際にHello Worldが表示されることが確認できます。
 
-<!-- 10 -->
+|![](https://storage.googleapis.com/zenn-user-upload/66988993db5d-20230302.png)|
+|:--|
 
-次に、自分のドメインへのCNAMEを設定します。
+次に、自分のドメインでのアクセスを可能にするために、CNAMEを設定します。
 左ペインのWebサイトを選択し、作成したドメインを選択します。
 
+|![](https://storage.googleapis.com/zenn-user-upload/d4ef985dcbb0-20230302.png)|
+|:--|
 
 左ペインのDNSから、先ほどのnnydtmg.workers.devドメインへCNAMEを登録します。
 
+|![](https://storage.googleapis.com/zenn-user-upload/cec39adc6925-20230302.png)|
+|:--|
 
+|![](https://storage.googleapis.com/zenn-user-upload/7c54bc083b9d-20230302.png)|
+|:--|
 
-実はこれだけではアクセス出来ません。
+登録出来ました！！！
+
+が、実はこれだけではアクセス出来ません。
 Workerのページでルート設定が必要です。
+サービスのページから、ルートを選択します。少しわかりにくいですね、、
 
+|![](https://storage.googleapis.com/zenn-user-upload/0d38118ed30b-20230302.png)|
+|:--|
 
+ルート追加を選択し、ゾーンに対してルートを設定します。
 
+|![](https://storage.googleapis.com/zenn-user-upload/b5b58431f6b7-20230302.png)|
+|:--|
 
+追加出来ました。
 
+|![](https://storage.googleapis.com/zenn-user-upload/0dde8fc9a0a7-20230302.png)|
+|:--|
 
+では、自分のドメインでアクセスできるか確認してみましょう！
+
+|![](https://storage.googleapis.com/zenn-user-upload/30de05c3478e-20230302.png)|
+|:--|
+
+出来ました！
+これだけで自分のドメインを使って簡単なWEBページを構築できるのは、他のクラウドサービスと比べてもかなり楽だなと思います。
+しかも、リージョンレスでグローバルにデプロイされるので、なかなかのインパクトを感じます。
 
 
 # 最後に
