@@ -3,7 +3,7 @@ title: "Cloudflare WorkersをWranglerで構築してみる"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Cloudflare","Tech","wrangler","入門"]
-published: false
+published: true
 ---
 
 # Introduction
