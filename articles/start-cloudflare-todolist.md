@@ -3,7 +3,7 @@ title: "CloudflareでTodoListを作ってみる"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Cloudflare","Tech","tutorial","入門"]
-published: false
+published: true
 ---
 
 # Introduction
@@ -145,6 +145,7 @@ team名？を入力します。会社単位や管理するグループのイメ�
 |:--|
 
 アプリの登録を行います。
+今回はSelf-hostedを選択しました。
 
 |![](https://storage.googleapis.com/zenn-user-upload/45b63532a86d-20230304.png)|
 |:--|
