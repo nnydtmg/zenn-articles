@@ -39,7 +39,8 @@ cd nnydtmg-todolist/
 
 この状態で `wrangler publish` するとエラーが発生します。記事にある通り、KVの設定がないから当たり前ですね。
 
-<!--01-->
+|![](https://storage.googleapis.com/zenn-user-upload/1d7214fdbcc5-20230303.png)|
+|:--|
 
 
 # Workers KV 構築
@@ -59,6 +60,8 @@ wrangler kv:namespace create <NAMESPACE> [OPTIONS]
 wrangler kv:namespace create TODO_LIST
 ```
 
+このような形で、末尾にidが出力されています。後で重要になるので末尾全てコピーしておきましょう。
+
 ```
 Delegating to locally-installed wrangler@2.12.0 over global wrangler@2.12.0...
 Run `npx wrangler kv:namespace create TODO_LIST` to use the local version directly.
@@ -73,7 +76,8 @@ Add the following to your configuration file in your kv_namespaces array:
 
 コンソールからも確認が出来ました。
 
-<!--02-->
+|![](https://storage.googleapis.com/zenn-user-upload/42db81f76d22-20230303.png)|
+|:--|
 
 この状態ではまだworkersからKVを参照する事が出来ないので、バインディングの設定を行います。
 [こちら](https://developers.cloudflare.com/workers/wrangler/workers-kv/)を参考にすると、wrangler.tomlに `kv_namespaces = []`を追加すれば良いようです。
@@ -87,21 +91,23 @@ kv_namespaces = [
 
 再度デプロイしてみます。Todosという画面が表示されていれば完成です。
 
-<!--03-->
+|![](https://storage.googleapis.com/zenn-user-upload/54f416c79098-20230303.png)|
+|:--|
 
 適当な値を入れてみましょう。
 `first test`という文字を登録してみます。
 コンソールから状態を確認すると、登録されている事は確認できます。
 
-<!--04-->
+|![](https://storage.googleapis.com/zenn-user-upload/4ca6a168f50f-20230303.png)|
+|:--|
 
 コマンドではこちらです。
+恐らくkeyはかなり複雑なものになってるかと思いますので、コンソールからコピーして使ってください。
 
 ```bash
-wrangler kv:key get --binding=TODO_LIST "data-2400:2200:5e9:a58b:4161:251a:91dc:92d8"
+wrangler kv:key get --binding=TODO_LIST "key"
 ```
 
-なんだかキーが見にくいので、改善したいですね。
 
 # オプション
 
