@@ -164,7 +164,7 @@ export class AwsCostalertSlackappStack extends cdk.Stack {
       handler: 'app.handler',                // file is "hello", function is "handler"
       environment: {
         TZ: 'Asia/Tokyo',
-        SLACK_POST_URL: 'コピーしたURL,
+        SLACK_POST_URL: 'コピーしたURL',
         SLACK_CHANNEL: '送信先チャンネル',
       },
       layers: [layer],
@@ -208,6 +208,30 @@ cdk deploy
 正常に終了後、マネジメントコンソールでCloudFormationを確認してみましょう。
 スタックが作成されているはずです。
 後は実行されるまで待ちます。
+
+
+
+# 改善
+
+このままでも問題ないですが、よりセキュアに定義してみましょう。
+どこかというと、スタック内でLambdaを定義する部分のパラメータをParameterStoreから参照出来るようにします。
+
+```ts:aws-costalert-slackapp-stack.ts
+      environment: {
+        TZ: 'Asia/Tokyo',
+        SLACK_POST_URL: 'コピーしたURL',
+        SLACK_CHANNEL: '送信先チャンネル',
+      },
+```
+ParameterStore自体は手動で作成します。
+ParameterStoreをコードで作成してしまうと、結局クレデンシャルが残るのであまり好きではありませんし、適切ではないと思います。
+
+## ParameterStore作成
+
+
+## Stack内でParameterStoreの値を参照する
+
+
 
 
 
