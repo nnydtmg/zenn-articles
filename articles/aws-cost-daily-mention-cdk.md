@@ -38,16 +38,33 @@ SlackでWebHookを受けられるように設定を行います。
 
 通知したいチャンネルを作成し、チャンネルの設定から、「アプリを追加する」を選択し、「Appディレクトリを表示」をクリックすると、ブラウザにSlackのアプリ設定画面が開きます。
 
-<!--image-->
+|![アプリを追加する](https://storage.googleapis.com/zenn-user-upload/e67f37bdc70f-20230307.png)|
+|:--|
+
+|![Appディレクトリを表示](https://storage.googleapis.com/zenn-user-upload/3f6568f34410-20230307.png)|
+|:--|
+
+|![アプリのビルド](https://storage.googleapis.com/zenn-user-upload/223c6a6deb4c-20230307.png)|
+|:--|
 
 Create AppからNameSpace等を設定し、Webhookの許可を行います。
 
-<!--image-->
+|![アプリの作成](https://storage.googleapis.com/zenn-user-upload/07a1625d3aa9-20230307.png)|
+|:--|
+
+|![スクラッチで作成](https://storage.googleapis.com/zenn-user-upload/bace09e5bd4c-20230307.png)|
+|:--|
+
+|![各種設定](https://storage.googleapis.com/zenn-user-upload/df74abb2cc10-20230307.png)|
+|:--|
 
 「Add New Webhook to Workspace」をクリックすると、チャンネル用のURLが表示されますので、コピーしておきます。
 
-<!--image-->
+|![Webhook有効化](https://storage.googleapis.com/zenn-user-upload/92c25cc1356c-20230307.png)|
+|:--|
 
+|![URL発行](https://storage.googleapis.com/zenn-user-upload/2a84421a9e24-20230307.png)|
+|:--|
 
 ## CDKプロジェクト作成
 
@@ -210,6 +227,14 @@ cdk deploy
 後は実行されるまで待ちます。
 
 
+## 実行確認
+
+設定時刻にSlackを見てみると、、うまく実行されてますね！
+料金はちょっと特殊な表示になってますが、あまり利用していないアカウントなのでそもそも利用料がないです。（面白味がないですね）
+
+|![実行確認](https://storage.googleapis.com/zenn-user-upload/8d5f0999125f-20230307.png)|
+|:--|
+
 
 # 改善
 
@@ -226,13 +251,116 @@ cdk deploy
 ParameterStore自体は手動で作成します。
 ParameterStoreをコードで作成してしまうと、結局クレデンシャルが残るのであまり好きではありませんし、適切ではないと思います。
 
+また、せっかくなのでSecretsManagerも利用してURLの取得をしてみたいと思います。
+何のためかと言われると、普段コードを書く仕事をしていないので、この機会にチャレンジしてみようという、ただそれだけです！
+
+
 ## ParameterStore作成
+
+ParamaterStoreの作成は特に変わったことをするわけではないので、作成手順は割愛します。
+型はString型で登録しています。SecureStringでも良いですが、その場合は、メソッドが変わるのでご注意ください。
 
 
 ## Stack内でParameterStoreの値を参照する
 
+先ほど作成したパラメータストアをスタックから参照します。
+
+```ts:aws-costalert-slackapp-stack.ts
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+
+export class AwsCostalertSlackappStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+    // Parameter
+    const slackChannel = StringParameter.valueForStringParameter(this, 'ParameterStore key');
+```
+コードとしては1行足すだけです。簡単ですね。
+今回は `string` 型で登録しているので、valueForStringParameterメソッドを利用します。
 
 
+## SecretsManager作成
+
+URLはSecretsManagerに登録してみます。
+こちらも手順は省きますが、とりあえず登録してみました。
+
+
+## Lambda関数内でSecretsManagerの値を取得する
+
+SecretsManagerに登録した値はスタックから参照すると、SecureStringとなってスタック内で型変換等が必要になるので、Lambdaが参照するようにしてみます。
+Lambdaが起動するたびにSecretsManagerへのアクセスが発生するので、気になる方はParamaterStoreでcdk deployの時に取得する方法で十分かと思います。
+
+```python:app.py
+from botocore.exceptions import ClientError
+
+def get_secret():
+  secret_name = "SecretsManagerのキー"
+  region_name = "ap-northeast-1"
+
+  # Create a Secrets Manager client
+  session = boto3.session.Session()
+  client = session.client(
+      service_name='secretsmanager',
+      region_name=region_name
+  )
+  try:
+      get_secret_value_response = client.get_secret_value(
+          SecretId=secret_name
+      )
+  except ClientError as e:
+      if e.response['Error']['Code'] == 'DecryptionFailureException':
+          # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
+          # Deal with the exception here, and/or rethrow at your discretion.
+          raise e
+      elif e.response['Error']['Code'] == 'InternalServiceErrorException':
+          # An error occurred on the server side.
+          # Deal with the exception here, and/or rethrow at your discretion.
+          raise e
+      elif e.response['Error']['Code'] == 'InvalidParameterException':
+          # You provided an invalid value for a parameter.
+          # Deal with the exception here, and/or rethrow at your discretion.
+          raise e
+      elif e.response['Error']['Code'] == 'InvalidRequestException':
+          # You provided a parameter value that is not valid for the current state of the resource.
+          # Deal with the exception here, and/or rethrow at your discretion.
+          raise e
+      elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+          # We can't find the resource that you asked for.
+          # Deal with the exception here, and/or rethrow at your discretion.
+          raise e
+  else:
+      # Decrypts secret using the associated KMS CMK.
+      # Depending on whether the secret is a string or binary, one of these fields will be populated.
+      if 'SecretString' in get_secret_value_response:
+          secret = get_secret_value_response['SecretString']
+      else:
+          decoded_binary_secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+```
+シークレットを取得してデコードする関数を先ほどのapp.pyに追加します。
+それをhandler内で呼び出して利用します。
+
+```python:app.py
+    SLACK_POST_URL = get_secret()
+```
+
+## 再デプロイ
+
+再度デプロイして実行されるのを待ちます。
+待つのが嫌な人は近い時間に設定してデプロイしましょう。
+
+
+## 実行確認
+
+問題なく実行されました！
+これでパラメータは別としたちょっとセキュア？なスタックを作成することが出来ました。
+
+
+# 最後に
+
+コスト管理はAWSを利用する上でIAMと同じくらい大事なので、出来れば最初に設定しておきたいですね。
+Slackだけでなく、LINEに通知する記事も出ていたりするので、好みに合った通知方法を設定しておくことをおすすめします。
+こまめに見るし、リソースは削除しているから大丈夫という方も、朝起きてびっくり！という事態を防ぐためにも、ぜひ導入しておきましょう！
+
+最後まで呼んでいただいてありがとうございました！
 
 
 
