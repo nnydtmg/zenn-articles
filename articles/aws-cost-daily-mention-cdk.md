@@ -133,8 +133,8 @@ def handler(event, context):
         logger.error("Request failed: %s", e)
 ```
 
-少しだけコードの解説をすると、
-
+少しだけコードの解説をすると、cost-usageレポートの開始日と終了日を変数で定義し、それをもとにtotal_cost関数を実行しています。
+SLACKの設定はスタックで設定しているパラメータを参照するようになっています。
 
 
 ## Lambda Layer作成
@@ -148,8 +148,6 @@ mkdir lambda_layer  && cd lambda_layer
 mkdir python
 pip install -t python requests boto3
 ```
-
-
 
 
 ## CDKスタック作成
@@ -201,11 +199,13 @@ export class AwsCostalertSlackappStack extends cdk.Stack {
   }
 }
 ```
+先ほどのLambda_LayerとLambda、スケジュール実行するためのEventbridgeを定義しています。
+細かいパラメータの説明は今回省かせていただきます。
 
 lambdaコンストラクトを利用するため、以下コマンドでインストールします。
 
 ```
-npm install @aws-cdk/aws-lambda
+npm install aws-cdk-lib/aws-lambda
 ```
 
 ## CDKデプロイ
@@ -251,7 +251,7 @@ cdk deploy
 ParameterStore自体は手動で作成します。
 ParameterStoreをコードで作成してしまうと、結局クレデンシャルが残るのであまり好きではありませんし、適切ではないと思います。
 
-また、せっかくなのでSecretsManagerも利用してURLの取得をしてみたいと思います。
+また、せっかくなのでSecretsManagerも利用してURLの取得はそちらから行いたいと思います。
 何のためかと言われると、普段コードを書く仕事をしていないので、この機会にチャレンジしてみようという、ただそれだけです！
 
 
@@ -364,7 +364,7 @@ Slackだけでなく、LINEに通知する記事も出ていたりするので�
 
 コードはこちらにおいています。
 
-https://github.com/nnydtmg/aws-costalert-slackapp.git
+https://github.com/nnydtmg/aws-costalert-slackapp
 
 
 
