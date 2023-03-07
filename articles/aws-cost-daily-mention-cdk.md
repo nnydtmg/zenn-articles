@@ -362,5 +362,9 @@ Slackだけでなく、LINEに通知する記事も出ていたりするので�
 
 最後まで呼んでいただいてありがとうございました！
 
+コードはこちらにおいています。
+
+https://github.com/nnydtmg/aws-costalert-slackapp.git
+
 
 
