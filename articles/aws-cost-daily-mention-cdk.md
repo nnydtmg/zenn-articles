@@ -2,8 +2,8 @@
 title: "AWS CDKで毎日の料金をSlackに通知する機能を実装してみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["AWS","CDK","Cost","Slack"]
-published: false
+topics: ["AWS","CDK","Cost","Slack","python"]
+published: true
 ---
 
 # やりたいこと
@@ -134,7 +134,7 @@ def handler(event, context):
 ```
 
 少しだけコードの解説をすると、cost-usageレポートの開始日と終了日を変数で定義し、それをもとにtotal_cost関数を実行しています。
-SLACKの設定はスタックで設定しているパラメータを参照するようになっています。
+Slackの設定はスタックで設定しているパラメータを参照するようになっています。
 
 
 ## Lambda Layer作成
@@ -210,7 +210,7 @@ npm install aws-cdk-lib/aws-lambda
 
 ## CDKデプロイ
 
-アカウント内かつ構築リージョンで初回実行の方はbootstrapが必要になります。
+アカウント内で構築するリージョンで初回実行の方はbootstrapが必要になります。
 
 ```
 cdk bootstrap
@@ -290,6 +290,7 @@ SecretsManagerに登録した値はスタックから参照すると、SecureStr
 Lambdaが起動するたびにSecretsManagerへのアクセスが発生するので、気になる方はParamaterStoreでcdk deployの時に取得する方法で十分かと思います。
 
 SecretsManagerに値を登録すると、参考のコードが出てくるので、それをもとにします。
+また、LambdaがSecretsManagerに読み込みが出来るようIAMロールに権限が必要ですので、適宜付けてください。
 
 ```python:app.py
 from botocore.exceptions import ClientError
@@ -319,7 +320,7 @@ def get_secret():
     secret = get_secret_value_response['SecretString']
     return secret
 ```
-最後の2行だけ足しています。ここでは`SecretString`を返しているので、hondlerの方でastを使って辞書型に変換します。
+最後の2行だけ足しています。ここでは`SecretString`を返しているので、hondlerの方で`ast`を使って辞書型に変換します。
 
 ```python:app.py
 import ast
