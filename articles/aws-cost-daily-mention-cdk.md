@@ -289,57 +289,43 @@ URLはSecretsManagerに登録してみます。
 SecretsManagerに登録した値はスタックから参照すると、SecureStringとなってスタック内で型変換等が必要になるので、Lambdaが参照するようにしてみます。
 Lambdaが起動するたびにSecretsManagerへのアクセスが発生するので、気になる方はParamaterStoreでcdk deployの時に取得する方法で十分かと思います。
 
+SecretsManagerに値を登録すると、参考のコードが出てくるので、それをもとにします。
+
 ```python:app.py
 from botocore.exceptions import ClientError
 
 def get_secret():
-  secret_name = "SecretsManagerのキー"
-  region_name = "ap-northeast-1"
 
-  # Create a Secrets Manager client
-  session = boto3.session.Session()
-  client = session.client(
-      service_name='secretsmanager',
-      region_name=region_name
-  )
-  try:
-      get_secret_value_response = client.get_secret_value(
-          SecretId=secret_name
-      )
-  except ClientError as e:
-      if e.response['Error']['Code'] == 'DecryptionFailureException':
-          # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
-          # Deal with the exception here, and/or rethrow at your discretion.
-          raise e
-      elif e.response['Error']['Code'] == 'InternalServiceErrorException':
-          # An error occurred on the server side.
-          # Deal with the exception here, and/or rethrow at your discretion.
-          raise e
-      elif e.response['Error']['Code'] == 'InvalidParameterException':
-          # You provided an invalid value for a parameter.
-          # Deal with the exception here, and/or rethrow at your discretion.
-          raise e
-      elif e.response['Error']['Code'] == 'InvalidRequestException':
-          # You provided a parameter value that is not valid for the current state of the resource.
-          # Deal with the exception here, and/or rethrow at your discretion.
-          raise e
-      elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-          # We can't find the resource that you asked for.
-          # Deal with the exception here, and/or rethrow at your discretion.
-          raise e
-  else:
-      # Decrypts secret using the associated KMS CMK.
-      # Depending on whether the secret is a string or binary, one of these fields will be populated.
-      if 'SecretString' in get_secret_value_response:
-          secret = get_secret_value_response['SecretString']
-      else:
-          decoded_binary_secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+    secret_name = "SecretsManagerのシークレット名"
+    region_name = "ap-northeast-1"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        # For a list of exceptions thrown, see
+        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        raise e
+
+    # Decrypts secret using the associated KMS key.
+    secret = get_secret_value_response['SecretString']
+    return secret
 ```
-シークレットを取得してデコードする関数を先ほどのapp.pyに追加します。
-それをhandler内で呼び出して利用します。
+最後の2行だけ足しています。ここでは`SecretString`を返しているので、hondlerの方でastを使って辞書型に変換します。
 
 ```python:app.py
-    SLACK_POST_URL = get_secret()
+import ast
+def handler(event, context):
+  secret = ast.literal_eval(get_secret())
+  SLACK_POST_URL = secret['SecretsManagerのキー']
 ```
 
 ## 再デプロイ
@@ -353,6 +339,8 @@ def get_secret():
 問題なく実行されました！
 これでパラメータは別としたちょっとセキュア？なスタックを作成することが出来ました。
 
+|![再実行確認](https://storage.googleapis.com/zenn-user-upload/5196f3ba20ec-20230308.png)|
+|:--|
 
 # 最後に
 
