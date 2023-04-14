@@ -24,8 +24,8 @@
     "vscode": {
       // コンテナ内で使用する Extension を指定
       "extensions": [
-      "taichi.vscode-textlint",
-      "adrianwilczynski.terminal-commands"
+        "taichi.vscode-textlint",
+        "adrianwilczynski.terminal-commands"
       ],
 
       // コンテナ内での追加設定
