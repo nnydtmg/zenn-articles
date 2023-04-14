@@ -161,7 +161,7 @@ WaypointでCDパイプラインを抽象化
 ECS、Lambda（OCIイメージ）、EC2（AutoScaringGroup）としてもデプロイ可能
 ALBを作成しR53へレコード作成することもできる
 
-<!---->
+<!--スライド-->
 
 
 
