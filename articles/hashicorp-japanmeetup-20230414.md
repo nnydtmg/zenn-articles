@@ -3,7 +3,7 @@ title: "HashiCorp Japan Meetupに参加してきた"
 emoji: "🗂"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["terraform","meetup","blog"]
-published: false
+published: true
 ---
 
 # はじめに
