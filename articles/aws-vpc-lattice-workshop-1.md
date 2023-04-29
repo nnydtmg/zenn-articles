@@ -3,7 +3,7 @@ title: "AWS VPC LatticeがGAされたので触ってみた"
 emoji: "😸"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","Lattice","workshop"]
-published: false
+published: true
 ---
 
 # AWS VPC LatticeがGAされました
