@@ -2,8 +2,8 @@
 title: "AWS ECSについて改めてまとめてみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["aws","ecs","コンテナ"]
-published: false
+topics: ["aws","ecs","コンテナ","fargate"]
+published: true
 ---
 
 # はじめに
