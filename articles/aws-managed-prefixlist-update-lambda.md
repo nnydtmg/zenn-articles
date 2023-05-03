@@ -1,6 +1,6 @@
 ---
 title: "AWS管理のIPが更新された時にプレフィックスリストに登録しいているIPレンジを自動更新する"
-emoji: "😸"
+emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","python","lambda","waf"]
 published: false
@@ -56,6 +56,11 @@ Amazon WorkSpacesのネットワーク要件は[こちら](https://docs.aws.amaz
 ![](https://storage.googleapis.com/zenn-user-upload/c38da2bb70ac-20230503.png)
 
 ちなみに、手動で変更する場合は、この右上の変更から1レコードごと追加・削除・更新が可能です。
+
+python(boto3)を使ってLambdaを作成します。コードについてはGithubにあげていますのでご参考程度に見てみてください。
+
+https://github.com/nnydtmg/aws-prefixlist-update-lambda/blob/d760f68468da3ca5b46cdce5218ed7eea53d0003/lambda_function.py
+
 
 
 
