@@ -57,11 +57,108 @@ Amazon WorkSpacesのネットワーク要件は[こちら](https://docs.aws.amaz
 
 ちなみに、手動で変更する場合は、この右上の変更から1レコードごと追加・削除・更新が可能です。
 
+
+## トリガー設定
+
+ip-ranges.jsonの更新を通知するSNSトピックが提供されているので、それを利用します。
+ただし、提供リージョンがバージニア北部(us-east-1)のみのため、Lambdaもバージニア北部で作成するようにします。
+
+```
+arn:aws:sns:us-east-1:806199016981:AmazonIpSpaceChanged
+```
+
+Lambdaの設定タブから、トリガー設定を選択し、以下のように指定して追加をクリックするだけです。
+
+![](https://storage.googleapis.com/zenn-user-upload/b91de7819b3f-20230504.png)
+
+
+
+## コード説明
+
 python(boto3)を使ってLambdaを作成します。コードについてはGithubにあげていますのでご参考程度に見てみてください。
 
-https://github.com/nnydtmg/aws-prefixlist-update-lambda/blob/d760f68468da3ca5b46cdce5218ed7eea53d0003/lambda_function.py
+https://github.com/nnydtmg/aws-prefixlist-update-lambda/blob/2e44e3e8a2d69515e3117c645f793d000faadfea/lambda_function.py
+
+
+主要な処理だけ解説してみます。
+
+```python
+def get_new_ip_prefix(ipranges, region, service):
+    new_prefix = []
+    for key in ipranges['prefixes']:
+        if key['region'] == region and key['service'] == service:
+            new_prefix.append(key['ip_prefix'])
+    return new_prefix
+```
+
+この部分でip-ranges.jsonから必要なプレフィックスリストを抽出します。ここで必要なキー情報はAWSがサービスごとにネットワーク要件を出しているので参考にしてください。
+
+```python
+def get_current_prefix_list(name, i):
+    get_prefixlist = ec2.describe_managed_prefix_lists(
+        Filters=[
+            {
+                'Name':'prefix-list-name',
+                'Values':[
+                    name + str(i).zfill(3)
+                ]
+            },
+        ]
+    )
+    return get_prefixlist
+```
+
+この部分では現在の登録されているプレフィックスリスト情報を取得しています。検証用に連番をつけていたので、zfill()でフォーマットを揃えています。
+
+```python
+    # 不要項目削除
+    for list_item_desc in current_entries_list:
+        if 'Description' in list_item_desc:
+            del list_item_desc['Description']
+    # Cidrのみのリストを作成
+    for list_item in current_entries_list:
+        if 'Cidr' in list_item:
+            current_entries_ip_list.append(list_item['Cidr'])
+    # 登録済のCIDRから削除対象を抽出
+    for diff_item in current_entries_ip_list:
+        if diff_item not in ips_apne1_amazon:
+            del_entries_ip_list.append(diff_item)
+    # 新規登録対象のCIDRを抽出
+    for diff_item in ips_apne1_amazon:
+        if diff_item not in current_entries_ip_list:
+            add_entries_ip_list.append(diff_item)
+```
+
+lambda_handler内では、新しく取得した情報と、既存の情報を取得した上でCIDRのリストに変形して、全体を比較するようにしています。
+これによって、複数のマネージドプレフィックスリストに登録されている同じ抽出条件のCIDRリストから、新規に登録するCIDRと削除するCIDRのリストを作成します。
+
+そのあとは、各プレフィックスリストに対して追加するCIDRがあるか、削除するCIDRがあるかをチェックして、あればアップデートするという流れです。
+
+この辺りの処理はもっと簡潔に書ける気もしていますが、業務の片手間ということもあり、ひとまずよしとしています。。
 
 
 
+# 動作確認
+
+実際に動かしてみます。
+
+結果を見てみると、エントリーが更新されていて、バージョンも上がっていることがわかりますね。
+
+![](https://storage.googleapis.com/zenn-user-upload/0f21b23ef01a-20230504.png)
+
+しばらくすると、メールも送信されているので、その中で更新されたリストも確認できました。
+
+![](https://storage.googleapis.com/zenn-user-upload/cec47f19601a-20230504.png)
+
+これで、ip-ranges.jsonの更新を自動的に検知して、プレフィックスリストの更新と通知ができました。
+
+# 最後に
+
+普段業務の中でコードを書くことはないですが、日頃煩雑に思っていることを自分で自動化する・改善するという活動は勉強にもなるしとても楽しいですね。
+もっといろんな改善や仕組み作りなどにチャレンジしたいと思える経験でした。
+
+どんどん経験してどんどんアウトプットすることを、今後の目標としていきたいと思います。
+
+もっと素早く関数を綺麗に書けるようになりたい。。。
 
 
