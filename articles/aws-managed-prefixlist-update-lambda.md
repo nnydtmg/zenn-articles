@@ -3,7 +3,7 @@ title: "AWS管理のIPが更新された時にプレフィックスリストに�
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","python","lambda","waf"]
-published: false
+published: true
 ---
 
 # はじめに
