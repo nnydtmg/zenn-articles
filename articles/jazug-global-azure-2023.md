@@ -134,7 +134,13 @@ TSやPythonでかける
 
 # Azure OpenAI Service + Semantic Kernel (C#)
 
+OpenAIの画面での説明
+サンプルコードの出力まで
 
+デモをやる（C＃
+これは動画で見る
+
+書くこと多すぎて間に合ってない
 
 
 
