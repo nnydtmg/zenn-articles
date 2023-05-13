@@ -18,12 +18,12 @@ Azureだけでなくクラウドコンピューティングを学ぶイベント
 |タイトル|登壇者|
 |:--|:--|
 |Virtual EC WebSite Implemented by multi lang run on Azure Spring Apps.|寺田さん|
+|Azure Policyとガバナンスのおはなし|オルターブース 馬場さん|
 |Pulumi de Azure IaC|オルターブース 花岡さん|
-|2.Azure Policyとガバナンスのおはなし|オルターブース 馬場さん|
 |Azure OpenAI Service + Semantic Kernel (C#)|千代田まどか(ちょまど)さん|
-|1.何も変えてないのにAzure Static Web Apps上の個人ブログがダウンしたお話|kdk_wakaba さん|
-|2.祝GA！！ Azure Communication Services のメール送信機能について|onarimonprogram さん|
-|3.Azure Virtual Desktopの今|iwai_d さん|
+|何も変えてないのにAzure Static Web Apps上の個人ブログがダウンしたお話|kdk_wakaba さん|
+|祝GA！！ Azure Communication Services のメール送信機能について|onarimonprogram さん|
+|Azure Virtual Desktopの今|iwai_d さん|
 
 
 https://jazug.connpass.com/event/279068/
@@ -132,6 +132,7 @@ TSやPythonでかける
 
 
 
+# Azure OpenAI Service + Semantic Kernel (C#)
 
 
 
