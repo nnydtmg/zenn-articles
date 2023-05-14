@@ -3,7 +3,7 @@ title: "Global Azure 2023に参加しました"
 emoji: "🗂"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["azure","ug"]
-published: false
+published: true
 ---
 
 # Global Azure 2023とは
