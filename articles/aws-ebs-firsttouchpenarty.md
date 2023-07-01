@@ -3,7 +3,7 @@ title: "EBSのファーストタッチペナルティについて調べてみた
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","ebs","ec2"]
-published: false
+published: true
 ---
 
 # ファーストタッチペナルティとは
@@ -24,8 +24,9 @@ published: false
 - EBSをリストアした時に全てのディスクへアクセスする
 - 「[Amazon EBSの高速スナップショット復元](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/ebs-fast-snapshot-restore.html)」を使用する
 
+:::message alert
 高速スナップショット復元を利用した際には料金が追加でかかるので注意が必要です。
-
+:::
 
 # やってみた
 
@@ -37,8 +38,8 @@ published: false
 2. Dドライブ側に30GBのデータを作成します。
 3. Eドライブへ2.で作成したデータをコピーして、速度を計測します。（Eドライブ側のデータは削除します。）
 4. Eドライブのスナップショットを作成します。
-5. Eドライブをデタッチして、スナップショットから作成したボリュームをDドライブにアタッチします。
-6. 3.と同様にデータをコピーして、速度を計測します。（Dドライブ側のデータは削除します。）
+5. Eドライブをデタッチして、スナップショットから作成したボリュームをEドライブにアタッチします。
+6. 3.と同様にデータをコピーして、速度を計測します。
 
 
 ## 手順
@@ -65,6 +66,13 @@ https://dev.classmethod.jp/articles/rdp-connection-to-windows-server-using-ec2-i
 $ aws --version
 aws-cli/2.12.6 Python/3.11.4 Linux/5.10.102.1-microsoft-standard-WSL2 exe/x86_64.ubuntu.22 prompt/off
 ```
+```bash
+aws ec2-instance-connect open-tunnel \
+  --instance-id <instance-id> \
+  --remote-port 3389 \
+  --local-port 13389
+```
+
 
 以下の出力があれば、リモートデスクトップが可能になります。
 ```bash
@@ -81,7 +89,7 @@ https://learn.microsoft.com/ja-jp/windows-server/storage/disk-management/assign-
 
 ### 2. テストファイル作成
 
-Dドライブ側に30GBのテストファイルを作成します。
+Dドライブ側に30GBのテストファイルを作成します。PowerShellを使って以下のコマンドを実行します。
 
 ```bash
 D:\>fsutil file createNew D:\dummy.data 32212254720
@@ -114,7 +122,6 @@ $t = $watch.Elapsed
 :::
 
 [こちら](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/EBSSnapshots.html)を参考にスナップショットを取得していきます。
-
 対象のボリュームページに遷移して、「アクション」から「スナップショットを取得」を選択します。
 
 ![](https://storage.googleapis.com/zenn-user-upload/1991cbdf6a0b-20230701.png)
@@ -146,7 +153,7 @@ $t = $watch.Elapsed
 |回数|経過時間|
 |:--|:--|
 |1回目|13 min 39.135 sec|
-|2回目||
+|2回目|8 min 22.491 sec|
 
 多少初回が遅くなってます。（正直もっと差が出ると思いました。）
 これが正確な計測にはなっていないかもしれませんので、参考程度に見ていただいて、ぜひご自身の環境でも検証してみてください。
