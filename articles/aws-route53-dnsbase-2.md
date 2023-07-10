@@ -69,27 +69,53 @@ AWSのVPC内でDNSクエリを実行する場合は、VPCのCIDRの先頭に+2�
 
 ![](https://storage.googleapis.com/zenn-user-upload/dfd067e09da5-20230710.png)
 
-オンプレミス側にDNS Resolverがなかったりしますが、大まかなフローは、
+図の中にはオンプレミス側にDNS Resolverがなかったりしますが、大まかなフローは、
 
 * オンプレミスからAWSが破線部で、インバウンドエンドポイントを経由してRoute53で名前解決をするように設定
 * AWSからオンプレミスは実線部で、アウトバウンドエンドポイントを経由してオンプレミスDNSサーバへ名前解決をするように転送
 
 となっています。この2つのエンドポイントはオンプレミスとのハイブリッド設計ではほぼ必須となるので、利用頻度はかなり高いです。また、VPC間の接続時に外部とのハブ構成を取ることが望ましいので、その際にもDNSの集約などで活躍する機能となっています。
 
+エンドポイントの料金はENI(Elastic Network Interface)に依存するため、1時間あたり0.125USD/ENIの料金がかかります。これが地味に料金にはかさんできますので、集約して利用するなどのアカウント構成を考えましょう。
+
+Route 53 Resolverには ***ゾーン転送***の機能もあるので、企業のドメインをNetwork管理アカウントにホストして、サブドメインを各システム用アカウントで利用するということも可能です。
 
 ## Route 53 Resolver DNS Firewall
 
 あまり大きく取り上げられることはないですが、かなり機能としては便利だと個人的には思っているのが、***DNS Firewall***です。
 これは、VPC内部のリソースが外部へアクセスする際に、DNSクエリの時点でフィルタリングルールによって拒否する事ができる機能です。FirewallとしてはWAFやNetworkFirewallをAWSは提供していますが、WAFは外部からのアクセスに対してのサービスであり、NetworkFirewallとは対応しているレイヤが異なります。
 
+* DNS FirewallはVPC内部のアプリケーションからRoute 53 Resolverを通過するアウトバウンドのDNSクエリを検査します。
+* Network Firewallはアプリケーション層に加えて、ネットワーク層でのトラフィックを検査しますが、Route 53 Resolverによって実行されるクエリに対しては検査されません。
+
+どういうことかというと、DNS FirewallはRoute 53が問い合わせを行うDNSサーバ(ドメイン)に制限をかけ、NetworkFirewallは実際に通信する際のHTTP/HTTPS通信のアウトバウンド・インバウンド通信のIPアドレス・プロトコル・ドメイン名をフィルタリングできます。
+
+DNS Firewallを通すことで不要なDNSクエリを外部に出す事がなくなるので、DNSキャッシュポイズニング等のDNSに関する攻撃からシステムを守ることができます。
+[料金](https://aws.amazon.com/jp/route53/pricing/)も0.60USD （処理した 100 万クエリあたり - 最初の 10 億クエリ/月）なので、そこまで高額にならないかとも思いますので、ぜひ導入の検討をしてみてはいかがでしょうか。
 
 
+# さいごに
 
+まだまだざっくりとしたまとめになっているのですが、大まかな機能としては記載できたかと思います。
+後日さらに詳細をまとめた記事を書きます。（宣言駆動です。）
 
+最近DNSでハマることが非常に多いので、自分のおさらいのためにもDNSのさらに深掘った部分も記事にしていきたいと思っています。
 
+# 参考資料
 
+AWS BlackBelt Online seminarがかなり詳細に解説してあるので、そちらもぜひ合わせてご確認ください。
 
+## Amazon Route 53 導入編【AWS Black Belt】
 
+https://youtu.be/Yi-e5O_jd6o
+
+## Amazon Route 53 Hosted zone編【AWS Black Belt】
+
+https://youtu.be/7z1rmlCJDwE
+
+## Amazon Route 53 Resolver【AWS Black Belt】
+
+https://youtu.be/6nf6vIQha1g
 
 
 
