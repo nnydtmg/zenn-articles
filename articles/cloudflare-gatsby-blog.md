@@ -3,7 +3,7 @@ title: "Gatsby.jsとCloudflare Pagesでブログを構築してみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cloudflare","gatsby","node"]
-published: false
+published: true
 ---
 # やりたいこと
 
@@ -178,6 +178,8 @@ GitHub上にこのサイト用の任意のリポジトリを作成しておき�
 Cloudflareのトップページから、`workers&pages`のサービスページへ遷移して、Pagesのタブを開きます。
 
 ![](https://storage.googleapis.com/zenn-user-upload/8fc0104d1039-20230726.png)
+
+---
 
 ![](https://storage.googleapis.com/zenn-user-upload/32eeb35552fc-20230726.png)
 
