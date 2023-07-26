@@ -207,6 +207,10 @@ Cloudflareのトップページから、`workers&pages`のサービスページ�
 
 何か適当に記事に変更を加えてpushすると、ワークフローが動き出します。そして、正常に終了すると、 Cloudflare側でも正常にデプロイされているのが確認できます！
 
+![](https://storage.googleapis.com/zenn-user-upload/2ef9351bd7fb-20230726.png)
+
+---
+
 ![](https://storage.googleapis.com/zenn-user-upload/c050191d3099-20230726.png)
 
 `サイトにアクセス`からプレビューページに飛ぶことができます。
