@@ -238,18 +238,6 @@ https://zenn.dev/nnydtmg/articles/start-cloudflare
 https://gatsby.nnydtmg.com/
 
 
-# 追記 (2023/8/2)
-## プロフィール編集
-
-* gatsby-config.js
-
-このファイルの中で大体の設定は完了します。siteMetadata内の各パラメータを修正する事で自身のX(旧Twitter)へのリンクをはることもできます。
-アイコンについても、最下部のiconパラメータにファイルパスを記載すると設定可能です。
-
-* src/components/bio.js、src/components/layout.js
-
-この中にも各ページのレイアウト情報がありますので変更しておきましょう。
-
 
 
 
