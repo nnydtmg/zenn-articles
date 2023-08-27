@@ -233,6 +233,11 @@ https://zenn.dev/nnydtmg/articles/start-cloudflare
 今後は見た目の修正や、Zenn記事との連携などいい感じにできるようにしていきたいです。
 長い目で見ていただければ幸いです。
 
+興味があればのぞいてみてください。
+
+https://gatsby.nnydtmg.com/
+
+
 
 
 
