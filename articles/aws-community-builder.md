@@ -3,7 +3,7 @@ title: "AWS Community Builderに選出いただきました！"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","CommunityBuilder"]
-published: false
+published: true
 ---
 
 ![](https://storage.googleapis.com/zenn-user-upload/a670b85ae710-20230827.png)
@@ -44,11 +44,11 @@ APN向けのものとしては、**AWS Ambassadors**があります。こちら�
 
 ここまではAPN企業向けなので、まず会社としてAPNに加入していないとダメでしたが、ここからはAWSのユーザーであれば誰でも参加できるAWSが支援しているプログラムになります。
 
-**AWS User Group**はAWSのユーザーコミュニティを運営している方は参加することができます。この中でもグローバルイベントへの割引を受けたり、世界中のユーザーとSlackベースで情報共有することができます。
+**AWS User Groups**はAWSのユーザーコミュニティを運営している方は参加することができます。この中でもグローバルイベントへの割引を受けたり、世界中のユーザーとSlackベースで情報共有することができます。
 
 **AWS Community Bulders**はAWSに関して様々なアウトプットやコミュニティ運営を通して貢献していると認められればなることができます。AWS User GroupのBenefitに加えてベータ版のサービスを触らせてもらえたり、各種セッションを受けたりすることができます。
 
-**AWS Hero**はAWS Community Buldersよりさらに各カテゴリーで特化したアウトプットをしている方を認定するプログラムです。かなりインフルエンサーとしての役割が強くなる印象です。
+**AWS Heroes**はAWS Community Buldersよりさらに各カテゴリーで特化したアウトプットをしている方を認定するプログラムです。かなりインフルエンサーとしての役割が強くなる印象です。
 
 これ以外にも学生向けの **Cloud Club**というものもできたりと、様々なユーザー向けプログラムが提供されているのでチェックしてみてください。
 
