@@ -1,24 +1,24 @@
 ---
-title: "AWS上でRocketChatを作るCloudformation Templateを作ってみた"
+title: "AWS上でRocketChatを作るCloudFormation Templateを作ってみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["aws","cloudformation","rocketchat"]
+topics: ["aws","CloudFormation","rocketchat"]
 published: true
 ---
 # やったこと
 
 皆さんはちょっとしたイベントの時に、簡単な匿名チャットツールが欲しいなと思ったことはありませんか？
-私は社内イベントの時などに、ふと社内チャットだとあまり活性化されてないなと感じ、簡単に作れる匿名チャットツールとしてRocketChatを作ってみました。都度手動もめんどくさいので、Cloudformationでテンプレート化してしまいました。
+私は社内イベントの時などに、ふと社内チャットだとあまり活性化されてないなと感じ、簡単に作れる匿名チャットツールとしてRocketChatを作ってみました。都度手動もめんどくさいので、CloudFormationでテンプレート化してしまいました。
 
 https://github.com/nnydtmg/aws-rocketchat-cfn
 
-# Cloudformationとは
+# CloudFormationとは
 
 ご存知の方も多いと思いますが、念の為。
-まずCloudformationとは、AWSのリソースをコードで作成できるIaCツールです。作成したいリソースをyamlかjson形式で宣言し、Cloudformationで作成したテンプレートを実行すると、Stackとして一塊のリソース群が作成されます。
+まずCloudFormationとは、AWSのリソースをコードで作成できるIaCツールです。作成したいリソースをyamlかjson形式で宣言し、CloudFormationで作成したテンプレートを実行すると、Stackとして一塊のリソース群が作成されます。
 手動での作成よりコードでインフラが管理できたり、一括削除ができて無駄な料金を発生させないなどのメリットがあります。マネジメントコンソールでサービスを作った経験があれば、次の段階として非常に良いツールかと思います。
 
-IaCツールとしては、CDKやTerraformといったものもありますが、今回は環境に依存しないCloudformationを選定しました。
+IaCツールとしては、CDKやTerraformといったものもありますが、今回は環境に依存しないCloudFormationを選定しました。
 
 # RocketChatとは
 
@@ -49,7 +49,7 @@ ACMでのパブリック証明書の発行は、様々な良記事が出てい�
 
 ![](https://storage.googleapis.com/zenn-user-upload/21c7a71e5d42-20230902.png)
 
-CloudflareのDNS管理の画面で先ほどメモしたCNAME名とCNAME値を登録します。この際プロキシを無効にしておきます。設定してしばらくすると、AWS側の検証が「成功」に変わるかと思います。この状態でCloudformationを実行します。
+CloudflareのDNS管理の画面で先ほどメモしたCNAME名とCNAME値を登録します。この際プロキシを無効にしておきます。設定してしばらくすると、AWS側の検証が「成功」に変わるかと思います。この状態でCloudFormationを実行します。
 
 ![](https://storage.googleapis.com/zenn-user-upload/9117e1c85ab6-20230902.png)
 
