@@ -536,11 +536,38 @@ DNS管理画面で、ACM発行時に指定したサブドメインと出力さ�
 
 ![](https://storage.googleapis.com/zenn-user-upload/8b694a0c6da2-20230902.png)
 
+## RocketChatの匿名チャット有効化
+
+RocketChatに管理者ログインしている状態で、左上のアイコンから管理ページを開きます。
+
+![](https://storage.googleapis.com/zenn-user-upload/11f641ecd63b-20230902.png)
+
+「設定」から「アカウント」を開きます。
+
+![](https://storage.googleapis.com/zenn-user-upload/987ee0c6d3ec-20230902.png)
+
+オフになっている、「匿名の読み取りを許可」などを有効化します。
+
+![](https://storage.googleapis.com/zenn-user-upload/015ca3f7adfa-20230902.png)
+
+この状態でパブリックなチャネルを作成すると、管理者以外のユーザーがアクセスすると匿名チャットが可能です。
+
+![](https://storage.googleapis.com/zenn-user-upload/abac55a93070-20230902.png)
+
+
 
 # 最後に
 
 ここまで読んでいただきありがとうございます。
 結構簡単に構築はできましたが、ドメイン周りで若干ハマったので、自分の備忘も兼ねて記事にしてみました。
 ぜひどなたかの参考になっていれば幸いです。
+
+
+# 追記(2023/9/2)
+
+RocketChatの匿名チャットの設定方法について追記しました。
+
+
+
 
 
