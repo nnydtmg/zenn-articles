@@ -3,14 +3,14 @@ title: "AWS上でRocketChatを作るCloudformation Templateを作ってみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","cloudformation","rocketchat"]
-published: false
+published: true
 ---
 # やったこと
 
 皆さんはちょっとしたイベントの時に、簡単な匿名チャットツールが欲しいなと思ったことはありませんか？
 私は社内イベントの時などに、ふと社内チャットだとあまり活性化されてないなと感じ、簡単に作れる匿名チャットツールとしてRocketChatを作ってみました。都度手動もめんどくさいので、Cloudformationでテンプレート化してしまいました。
 
-https://github.com/nnydtmg/aws-rocketchat-cfn.git
+https://github.com/nnydtmg/aws-rocketchat-cfn
 
 # Cloudformationとは
 
