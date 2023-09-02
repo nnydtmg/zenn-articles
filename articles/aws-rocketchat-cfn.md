@@ -22,7 +22,7 @@ IaCツールとしては、CDKやTerraformといったものもありますが�
 
 # RocketChatとは
 
-今回作成するRocketChatとは、チャットツールを自前に作成できるOSSのソフトウェアです。
+今回作成するRocketChatとは、チャットツールを自前に作成できるOSSのソフトウェアです。今回は本当に基本機能を使えれば良いので、データ永続化などは一才考慮していません。
 
 https://www.rocket.chat/
 
