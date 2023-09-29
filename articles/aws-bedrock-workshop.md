@@ -3,7 +3,7 @@ title: "Amazon BedrockがGAされたので、触ってみた"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","bedrock","generativeai"]
-published: false
+published: true
 ---
 # Amazon Bedrockとは
 AWS上でフルマネージドに生成AIモデルを利用できるサービスです。
