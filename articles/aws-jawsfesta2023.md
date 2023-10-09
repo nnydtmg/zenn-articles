@@ -92,6 +92,10 @@ https://x.com/awscloud_jp/status/1710581032792322526?s=20
 
 次回のDAYS、そして、来年のFesta、普段のJAWSの活動といろんな場所で今回お会いした皆さんとAWSを盛り上げていければと思いますので、よろしくお願いします！！
 
+最高に楽しい1日でした！！
+
+![](https://storage.googleapis.com/zenn-user-upload/e86b7721abcd-20231009.jpeg)
+
 
 # Togetter
 https://togetter.com/li/2225005
