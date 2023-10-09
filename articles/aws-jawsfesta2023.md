@@ -3,7 +3,7 @@ title: "JAWS Festa 2023に参加してきました！"
 emoji: "📝"
 type: "idea" # tech: 技術記事 / idea: アイデア
 topics: ["aws"]
-published: false
+published: true
 ---
 
 # JAWS Festa 2023とは
