@@ -3,7 +3,7 @@ title: "AWS Community Builderになっての数ヶ月を振り返る"
 emoji: "🌟"
 type: "idea" # tech: 技術記事 / idea: アイデア
 topics: ["aws","communitybuilder"]
-published: false
+published: true
 ---
 ![](https://storage.googleapis.com/zenn-user-upload/a670b85ae710-20230827.png)
 
