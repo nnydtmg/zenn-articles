@@ -1,5 +1,5 @@
 ---
-title: "AWS Support - Troubleshooting in the cloud Workshopをやってみた"
+title: "AWS Support - Troubleshooting in the cloud Workshopをやってみた①"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","cloudwatch","devops","operation"]
@@ -13,7 +13,7 @@ https://catalog.us-east-1.prod.workshops.aws/workshops/fdf5673a-d606-4876-ab14-9
 
 学習できるコンテンツ・コンセプトとしては、CI/CD、IaC、Serverless、コンテナ、Network、Database等のシステムに関わる全てのレイヤが網羅されているので、ぜひ一度チャレンジしてみてください。
 
-ここからは各セクションごとにまとめていきますので、興味のあるセクションにとんでください。
+ここからは各大セクションごとに記事にまとめていきますので、興味のあるセクションにとんでください。
 なお、すべてのセクションの前提作業は、Self-Paced Labのタブから必要なリソースのデプロイなどをしてください。
 
 
@@ -154,17 +154,42 @@ DynamoDBでエラーが起きてそうなので、クリックしてエラーメ
 対象のLambdaのIAM権限を確認すると、DynamoDBへのポリシーがアタッチされていないことが分かりましたので、こちらを更新していきます。手順はWorkshopに記載の通りなので割愛します。
 手順を実行すると、アプリケーションが再デプロイされるので、完了後に再度APIを呼び出してレスポンスを確認しましょう。正常に値が取得出来ていれば完了です。
 
-
-
-
-
 ## Issue 5
 
+前回の課題に引き続き、APIに関してのトラブルシューティングをしていきます。さらに、このセクションでは**CodeWisperer**^[[CodeWisperer](https://docs.aws.amazon.com/ja_jp/cloud9/latest/user-guide/codewhisperer.html)]を利用する事になっています！このあたりAWSの最新ツールを使わせるシナリオになっているのが素晴らしいですね。
 
+全ての項目を取得するAPIだけエラーになることが確認できたので、先ほどと同様Lambdaのログ、X-Rayコンソールを確認してみましょう。
 
+![](https://storage.googleapis.com/zenn-user-upload/98e38487b0f1-20231226.png)
+
+DynamoDBへのアクセスが発生していないように見えますので、Lambdaのコードを確認すると、DynamoDBをスキャンするためのコードスニペットがないため、コードを追加します。ここでCodeWispererの出番です。ぜひ使ってみてコード生成を体験してみてください。(私の環境では、かなりの精度で返ってきました。)
+
+コードを更新し、再度デプロイしてみます。APIを実行して全件取得がうまく動作すればこのセクションは完了です。
 
 ## Issue 6
 
+このセクションではLocustを用いて負荷試験を行います。負荷試験には15分かかるのでご注意ください。
+テスト結果はこちらです。
+
+![](https://storage.googleapis.com/zenn-user-upload/82397a05547d-20231227.png)
+
+シナリオにある通り、GETメソッドのみエラー率と時間がかかっていることが分かります。
+
+CloudWatchのインフラストラクチャモニタリングから、Lambda Insightsの画面を確認します。
+
+![](https://storage.googleapis.com/zenn-user-upload/66869b65a9e9-20231227.png)
+
+この画像から読み取れるのは、メモリ使用率がすべての関数で最大に近くなっているにも関わらず、GETメソッドのみ所要時間がかかっているという点です。また、Lambdaのエラーとしては1件も出ていませんが、テスト結果にはFailuresがカウントされているため、関数内部でエラーを返しているため関数自体がエラーになっていないことが分かります。
+
+画面下部には各関数ごとのサマリがあり、関数名を選択すると関数ごとの各リクエストの詳細を見ることが出来ます。さらに、トレースが表示されている行については選択すると、X-Rayトレースの画面が表示されます。
+
+![](https://storage.googleapis.com/zenn-user-upload/0e1de567ed7a-20231227.png)
+
+このトレースからはDynamoDBにおいてエラーが出ていますが、こちらもDynamoDBを選択すると詳細が確認できます。
+
+![](https://storage.googleapis.com/zenn-user-upload/8a5d92554bb2-20231227.png)
+
+メッセージとしては、スループットが足りていないためプロビジョニングのレベルを上げるよう言われています。ただ、これは関数でのスキャン量を減らすなどでも対応できる項目ですので、**DevOps Guru**^[[DevOps Guru](https://aws.amazon.com/jp/blogs/news/automatically-detect-operational-issues-in-lambda-functions-with-amazon-devops-guru-for-serverless/)]を使ってコードの検証をしていくことになります。
 
 
 
