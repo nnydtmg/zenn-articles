@@ -132,7 +132,42 @@ RoleArn: !GetAtt
 
 ![](https://storage.googleapis.com/zenn-user-upload/963a445abafb-20231226.png)
 
-これにてDevOps and Serverless Troubleshootingの章は完了です。
+これにてデプロイパイプラインに関しての問題は解消しましたので、デプロイされたAPIについてトラブルシューティングをしていきます。
+
+## Issue 4
+
+まずは手順通りリクエストを実行してエラーが起きることを確認します。
+Getリクエストで値が取得できないことが確認できたので、呼び出されているLambdaのログを確認してみます。しかし、GetItem関数のログに手掛かりになりそうなメッセージは出ていないです。
+
+実は、このWorkshopではX-Rayに統合されているので、CloudWatchの画面からX-Rayのリソースマップを見てみましょう。
+
+![](https://storage.googleapis.com/zenn-user-upload/213fd4c3cf97-20231226.png)
+
+Getメソッド側に障害・エラーになっているのが見えるかと思います。その上で各項目をクリックしてみると詳細が見えるので、トレースログなどを見てみます。
+
+![](https://storage.googleapis.com/zenn-user-upload/18954a4dfcad-20231226.png)
+
+DynamoDBでエラーが起きてそうなので、クリックしてエラーメッセージを見てみます。すると、AccessDeniedExceptionが出ているので、何か権限回りでエラーになっていそうです。
+
+![](https://storage.googleapis.com/zenn-user-upload/4bc3635b7486-20231226.png)
+
+対象のLambdaのIAM権限を確認すると、DynamoDBへのポリシーがアタッチされていないことが分かりましたので、こちらを更新していきます。手順はWorkshopに記載の通りなので割愛します。
+手順を実行すると、アプリケーションが再デプロイされるので、完了後に再度APIを呼び出してレスポンスを確認しましょう。正常に値が取得出来ていれば完了です。
+
+
+
+
+
+## Issue 5
+
+
+
+
+## Issue 6
+
+
+
+
 
 # Containers Troubleshooting
 
