@@ -190,8 +190,21 @@ CloudWatchのインフラストラクチャモニタリングから、Lambda Ins
 ![](https://storage.googleapis.com/zenn-user-upload/8a5d92554bb2-20231227.png)
 
 メッセージとしては、スループットが足りていないためプロビジョニングのレベルを上げるよう言われています。ただ、これは関数でのスキャン量を減らすなどでも対応できる項目ですので、**DevOps Guru**^[[DevOps Guru](https://aws.amazon.com/jp/blogs/news/automatically-detect-operational-issues-in-lambda-functions-with-amazon-devops-guru-for-serverless/)]を使ってコードの検証をしていくことになります。
+DevOps Guruを有効化すると事後的インサイトととして先ほどのアプリケーションの以上が検知されています。さらにエラー率などがグラフ化されていたり、推奨事項の提示等をしてくれています。かなり分かりやすいです。
+
+![](https://storage.googleapis.com/zenn-user-upload/a65abaf8e991-20231228.png)
+
+![](https://storage.googleapis.com/zenn-user-upload/ff2e1367b744-20231228.png)
+
+より詳細なメトリクスやダッシュボードについては、かなり長くなってしまったので、別記事にまとめてみたいと思います。
 
 
+# 最後に
+
+これにてこの章は終了になります。
+この章を通してCI/CDパイプライン自体のトラブルシューティングとAPIの負荷テストまで実施することができました。また、使ったことのなかったDevOps Guruを使ってみることが出来たのでとてもいい経験になりました。
+
+Workshop全体としてはまだまだセクションもありますので、別の記事でそれぞれ検証していきたいと思います。
 
 
 
