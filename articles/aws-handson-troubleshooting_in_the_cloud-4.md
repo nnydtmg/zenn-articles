@@ -16,8 +16,16 @@ https://catalog.us-east-1.prod.workshops.aws/workshops/fdf5673a-d606-4876-ab14-9
 ここからは各大セクションごとに記事にまとめていきますので、興味のあるセクションにとんでください。
 なお、すべてのセクションの前提作業は、Self-Paced Labのタブから必要なリソースのデプロイなどをしてください。
 
-
+別の章の記事は末尾に追記していきますので、気になる章はリンクから飛んでいただければと思います。
 
 # Database troubleshooting
 
+
+
+
+
+
+# リンク
+
+https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-1
 
