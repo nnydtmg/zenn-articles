@@ -213,5 +213,7 @@ Workshop全体としてはまだまだセクションもありますので、別
 
 
 # リンク
+## DevOps Guruについて
 
+https://zenn.dev/nnydtmg/articles/aws-devopsguru-workshop
 
