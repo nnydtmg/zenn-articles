@@ -3,7 +3,7 @@ title: "AWS Support - Troubleshooting in the cloud Workshopをやってみた②
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","cloudwatch","devops","operation"]
-published: false
+published: true
 ---
 # AWS Support - Troubleshooting in the cloudとは
 AWSが提供するWorkshopの一つで、現在(2023/12)は英語版が提供されています。(フィードバックが多ければ日本語化も対応したいとのこと)
