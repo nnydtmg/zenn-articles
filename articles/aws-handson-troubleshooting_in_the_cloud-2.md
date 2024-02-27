@@ -23,9 +23,14 @@ https://catalog.us-east-1.prod.workshops.aws/workshops/fdf5673a-d606-4876-ab14-9
 この章では、コンテナワークロードに関してのトラブルシューティングを行います。
 コンテナを普段利用しない（EC2でゴリゴリやってます）自分自身にとっては、かなり興味深い内容でとても勉強になりました。
 
+:::message
+この記事ではECSやEKSの細かな用語についての解説はしていないので、そちらについては別途AWSブログや他の方のブログをご覧ください。
+:::
+
+
 :::message alert
 Cloud9のImageIDパラメータが必須に変更されていて、CloudFormationのテンプレートがうまく動作しないので以下のテンプレートを参考に使ってください。
-ポイントは ***Parameters*** の ***ImageID*** 設定と ***EKSWSC9Instance*** での参照です。全量載せているのでコピーで利用してもらっても大丈夫です。
+ポイントは ***Parameters*** の ***ImageID*** 設定と ***EKSWSC9Instance*** での参照です。全量載せているのでコピーで利用してもらっても大丈夫です。全てのデプロイに5-10分ほどかかります。
 :::
 
 :::details CloudFormationテンプレート
@@ -2207,9 +2212,109 @@ Outputs:
 ```
 :::
 
+# ECS編概要
+一般的なECS on EC2のワークロードに対してトラブルシューティングをしていきます。
+構成は以下のようになっています。ここまでのリソースはCloudFormationで作成済みとなります。
+![](https://storage.googleapis.com/zenn-user-upload/1c40d2d6c78c-20240119.png)
+
+## Issue1
+EC2インスタンスで自動スケーリングを作成しているにも関わらず、ECSクラスターとして登録されていないので、解決していきます。
+
+Auto Scalingグループの設定はこちらです。
+
+![](https://storage.googleapis.com/zenn-user-upload/51a7a6d61873-20240227.png)
+
+しかし、実際のコンテナインスタンスは登録されていないことがECSコンソール画面から確認できます。
+![](https://storage.googleapis.com/zenn-user-upload/e23b3b4579e6-20240227.png)
+
+トラブルシューティングのプロセスにも記載されている通り、クラスターに登録するための前提条件を満たしているか、NW構成は適切か等を順に確認していきます。
+
+何はともあれ、まずはログを確認していきましょう。
+このセクションではCloudWatch Logsに***ecs-agentログ***と***ecs-initログ***が出力されているはずですので、その内容を読み取っていきます。
+
+***ecs-agentログ***にerrorの文言があるログが出ているかと思います。以下はその例です。
+```
+level=error time=2024-02-27T03:56:19Z msg="Error registering container instance" error="AccessDeniedException: User: arn:aws:sts::xxxxxxxxxxxx:assumed-role/ECSEC2Role/i-056dca48216db8a88 is not authorized to perform: ecs:RegisterContainerInstance on resource: arn:aws:ecs:us-east-1:xxxxxxxxxxxx:cluster/Empty because no identity-based policy allows the ecs:RegisterContainerInstance action"
+```
+
+これから読み取れるのは、IAMの権限不足です。***AmazonEC2ContainerServiceforEC2Role***をEC2に割り当てられているロールに付与してあげます。
+IAMコンソールから***ECSEC2Role***を検索し、ポリシーを追加します。
+
+追加するとすぐにCloudWatch Logsの***ecs-agentログ***のエラーメッセージが変わります。
+```
+level=error time=2024-02-27T04:05:34Z msg="Error registering container instance" error="ClientException: Cluster not found."
+```
+[こちら](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_RegisterContainerInstance.html#API_RegisterContainerInstance_Errors)のドキュメントを見ると、まだ権限が足りていないと言われています。しかし、上述したロールにはEC2でECSを運用するために必要な権限は許可されているはずです。つまり、EC2がこのロールをうまく利用できていないということになります。
+
+では、EC2がインスタンスに割り当てられたロールをうまく利用するとはどういうことでしょうか。EC2にはユーザーデータと呼ばれる、EC2が起動時する際に実行するスクリプト(bash形式orcloud-init形式)が指定できます。このスクリプトでyumアップデート等で必要なパッケージ更新が可能になっています。この中でインスタンスに関するメタデータ(IMDS)をチェックすることも可能となっています。
+今回のワークショップではテンプレート内でスクリプトを定義しているので、ここを更新していきます。
+
+EC2コンソールから起動テンプレート(ECSWorkshopLaunchTemplate)を選択し、アクションから以下のテンプレートに更新します。
+
+変更点としては、以下の部分です。
+```diff
+- echo ECS_CLUSTER=Empty >> /etc/ecs/ecs.config
++ echo ECS_CLUSTER=ECSWorkshopCluster >> /etc/ecs/ecs.config
+```
+これはECS_CLUSTERという環境変数にクラスター名を指定してecs.configを書き換えています。こうすることで、ECSエージェントが実際のクラスター名を認識し、正常に起動できるようになります。
+
+このテンプレートを使ってインスタンスを起動するために、Auto Scalingグループからインスタンスの更新を実行します。その際に起動テンプレートを先ほど更新したバージョンのものに置き換えてあげます。完了には十数分かかりますが、完了次第ECSクラスタインスタンスのコンソールを見てみると、登録されていることが確認できます。
+
+![](https://storage.googleapis.com/zenn-user-upload/473de1cf6210-20240227.png)
+
+以上でIssue1は完了です。
+
+## Issue2
+クラスターの起動が完了したので、実際にタスクを起動して確認しようとすると、タスクが停止されたという事象への対応になります。これは実務でもよくある内容かと思うので、非常に参考になる章かと思います。
+
+「新しいタスクを実行」から***ECSWorkshopECSTaskDefinition***を指定してタスク起動すると、以下のエラーコードが起動したタスクID内に出力されます。
+```
+CannotPullContainerError: Error response from daemon: repository public.ecr.aws/nginx/nginxlatest not found: name unknown: The repository with name 'nginxlatest' does not exist in the registry with id 'nginx'
+```
+ここから、***nginxlatest***がリポジトリに見つからないと言われているので、[ECRパブリックリポジトリ](https://gallery.ecr.aws/nginx/nginx)から正式なイメージ情報を確認します。
+結果以下のようにタスク定義を更新します。
+```diff
+- public.ecr.aws/nginx/nginxlatest
++ public.ecr.aws/nginx/nginx:latest
+```
+このタスク定義を利用して、再度タスクを起動してみます。コンテナのステータスがrunningになっていればIssue2は完了です。
+
+![](https://storage.googleapis.com/zenn-user-upload/e430a4525f42-20240227.png)
 
 
+## Issue3
+サービス定義から先ほどのタスク定義を利用して、サービスを起動します。
+タスク数を1に定義してサービスを起動すると、イベントタブから状況を確認できます。すると、ターゲットの登録解除が複数回行われています。
 
+![](https://storage.googleapis.com/zenn-user-upload/77db29854e95-20240227.png)
+
+ALBのアドレス(例：ECSWorkshopALB-96242924.us-east-1.elb.amazonaws.com)にアクセスすると、***503***か***504***が表示されているかと思います。これはサーバー側のタイムアウトが原因であり、クライアント側には問題がないエラーコードとなっています。つまり、ECSサービス側でうまく疎通が出来ていないものと推察できます。
+
+ALBのターゲットグループの設定を確認します。すると、ターゲットのヘルスチェックに失敗しているので、ここを解決してあげる必要がありそうです。
+
+今回のリソースとしては、ALBとECS(EC2)の通信なのでNW的に問題ないかを確認します。まずはSecurity Groupです。
+ALBのSGを確認するとすべてのアウトバウンドが許可されているので、良し悪しは置いといて問題なさそうです。
+![](https://storage.googleapis.com/zenn-user-upload/26858575cf27-20240227.png)
+
+ECSのSGを確認するとインバウンドにLB(10.0.11.0/24,10.0.10.0/24)からの通信が許可されていないことが分かります。ここにアクセス元にLBのSGを指定したルールを追加してあげます。
+
+![](https://storage.googleapis.com/zenn-user-upload/33c4f1024fb2-20240227.png)
+
+追加するとECSのサービスコンソールで以下のメッセージが出力されていればこのIssueも完了となります。
+```
+service ECSWorkshopService has reached a steady state.
+```
+
+# EKS編概要
+
+
+## Issue1
+
+
+## Issue2
+
+
+## Issue3
 
 
 # リンク
