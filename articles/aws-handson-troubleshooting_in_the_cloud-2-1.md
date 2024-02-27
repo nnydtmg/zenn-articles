@@ -1,5 +1,5 @@
 ---
-title: "AWS Support - Troubleshooting in the cloud Workshopをやってみた②"
+title: "AWS Support - Troubleshooting in the cloud Workshopをやってみた②~ECS編~"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","cloudwatch","devops","operation"]
