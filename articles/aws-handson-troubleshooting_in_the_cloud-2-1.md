@@ -2305,16 +2305,14 @@ ECSのSGを確認するとインバウンドにLB(10.0.11.0/24,10.0.10.0/24)か�
 service ECSWorkshopService has reached a steady state.
 ```
 
-# EKS編概要
+先ほどのALBのアドレスに再度アクセスするとNGINXのwelcomeページが表示されるかと思います。
+![](https://storage.googleapis.com/zenn-user-upload/0c95d7c3e3ec-20240227.png)
 
 
-## Issue1
-
-
-## Issue2
-
-
-## Issue3
+# さいごに
+ここまででかなり長くなってしまったので、EKS編に関しては別記事にします。
+コンテナワークロードのトラブルシューティングは今後増えると思われるため、ここで経験出来て良かったです。
+まだまだ触りの部分しか挑戦できていないので、もっと細かなトラブルシューティングが出来るものがあれば挑戦していきたいと思います。
 
 
 # リンク
