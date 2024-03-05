@@ -17,7 +17,7 @@ published: false
 まずはNWがどのようにして疎通できるようになっているかを簡単におさらいしておこうと思います。
 要素としては、[OSI参照モデル](https://ja.wikipedia.org/wiki/OSI%E5%8F%82%E7%85%A7%E3%83%A2%E3%83%87%E3%83%AB)でいう、L2/L3/L4をメインに見ていきます。俗にいう「アプセトネデブ」の「トネデ」の部分ですね。
 
-[](../img/aws-route-propagation/intro-01.svg)
+![](/images/aws-route-propagation/intro-01.png)
 
 # ルート伝播とは
 
