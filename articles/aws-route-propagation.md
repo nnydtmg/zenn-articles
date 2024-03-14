@@ -3,7 +3,7 @@ title: "AWSのルートテーブル伝播について"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","vpc","nw"]
-published: false
+published: true
 ---
 みなさんはVPCを構築した際に、ルートテーブルのサービスページに「**ルート伝播**」という文言を見て理解できたでしょうか。
 
