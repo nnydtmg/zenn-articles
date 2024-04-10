@@ -3,7 +3,7 @@ title: "AmazonLinux2023上でSquidフォワードプロキシ(SSL Bump)を構築
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","proxy","squid"]
-published: false
+published: true
 ---
 みなさんはProxyを構築したことはありますか？
 社内Proxyに阻まれた方は多いかと思いますが、あまり実際に構築したことがある方は多くないのかなと思います。さらに、SSL通信を透過するプロキシ(Transparent Proxy)に関しては関連記事もあまりないので、自分自身の備忘としても残しておこうと思います。
