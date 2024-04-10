@@ -15,33 +15,28 @@ published: false
 
 # はじめに
 今回はAWSの***AmazonLinux2023***のイメージを使ってフォワードプロキシを構築します。
-EC2を構築したことはあるが、Proxyを構築したことがないという方に向けてまとめていこうと思います。また、通常のHTTPプロキシではなく、HTTPS通信に対応したSSL Bumpを実装します。この部分の記事が少ないのでぜひ参考にしていただければと思います。
+EC2を構築したことはあるが、Proxyを構築したことがないという方に向けてまとめていこうと思います。また、通常のHTTPプロキシではなく、HTTPS通信に対応した[SSL Bump](https://www.squid-cache.org/Doc/config/ssl_bump/)を実装します。この部分の記事が少ないのでぜひ参考にしていただければと思います。
 
 
 # Squidとは
 そもそも[Squid](https://www.squid-cache.org/)とは、オープンソースで提供されているプロキシサーバーやウェブキャッシュサーバーを実装するためのソフトウェアです。マルチOSで稼働でき、GNU GPLライセンス下で利用できます。
 
 HTTP通信に限らず、HTTPSやFTPなどの様々なプロトコルに対応しており、プロキシサーバーとしては非常に多くのシェアを持っています。
+
+## プロキシモード
 Squidのプロキシモードとしては4つあります。
 1. フォワーディングプロキシ
-2. 多段プロキシ
-3. リバースプロキシ
-4. 透過的プロキシ
-
-## フォワーディングプロキシ
 内部NW(LAN)から外部NW(WAN)への通信を中継するための機能です。最もメインの機能になるかと思います。
 特定ドメインへのアクセス許可(ホワイトリスト)やアクセス拒否(ブラックリスト)の制御が可能です。
-
-## 多段プロキシ
+2. 多段プロキシ
 単一のプロキシで完結せず、内部の通信であれば別の社内プロキシに転送するような制御を行うための機能です。
 特定のアクセス先のものを次段のプロキシに転送して外部Saasと連携する(ex:ウイルスチェック)ような動作も実装可能です。
-
-## リバースプロキシ
+3. リバースプロキシ
 外部NWから内部NWに通信を受ける際に、代表のエンドポイントとして動作しアクセスを中継する機能です。
 内部のWEBサーバーの負荷分散やURLでの振り分けを行うような動作が可能です。また、SSL/TLSオフロード実装も可能なので、SSL終端として証明書を1つに集約することも可能です。
-
-## 透過的プロキシ
+4. 透過的プロキシ
 利用者がプロキシの存在を意識せずプロキシを利用できる機能です。通常はOSやアプリケーションにプロキシ情報を登録する必要がありますが、透過的プロキシは指定せずともアクセス経路上のプロキシを自動的に通っていくので、利用者が意識せず通信制御を実装することが可能です。
+
 
 ## アクセス制御方式
 ドメインリストやIPアドレスリストを用いてACLを設定して、アクセス許可/拒否を行います。さらに外部の認証機構と連携することも可能ですので、既存のユーザー管理システムと連携してユーザー認証を実装することも可能です。
@@ -52,8 +47,21 @@ Squidのプロキシモードとしては4つあります。
 これはSquidに限らず影響しますので、ご参考にしていただければと思います。
 
 1. パッケージ管理
-2. NICのIDが変化する
+こちらは有名(?)ですが、パッケージ管理がyumから**dnf**に変わっています。そのため、各種記事を参考にする際は注意が必要です。
+また、業務で使う際には閉域で構築される方や、S3のゲートウェイエンドポイントにエンドポイントポリシーでアクセス先を制御している方も多いのではないかと思います。その際、[こちら](https://docs.aws.amazon.com/ja_jp/linux/al2023/ug/live-patching.html#live-patching-prereq)を参考にエンドポイントポリシーにポリシーを追加してください。
+パッケージのアップデートは以下のように***バージョン指定が必要***です。
 
+```bash
+sudo dnf check-release-update
+sudo dnf --releasever=<version> check-update 
+sudo dnf --releasever=<version> update # 最新版であればlatestを指定すればよい
+```
+
+2. NICのIDが変化する
+これが意外に厄介で、今回のSquidのようにNICを明示的に設定に組み込む際に、都度確認して登録する必要があります。
+その際には`ip -o link show device-number-0 | awk -F': ' '{print $2}'`のようにNIC ID(ex:eth0, ens5)を抽出して利用できるようにしておくと汎用的にできます。
+
+最低限このあたりを意識して作業してもらえるとスムーズに進むかなと思います。
 
 
 # 手順
@@ -61,13 +69,13 @@ EC2の構築のために、VPCにPublicサブネット(NATGW)とPrivateサブネ
 
 ![アーキテクチャー図](/images/aws-squid-proxy/01-architecture.png)
 
-今回は以下のドメインで検証してみます。なお、各インスタンスにはSSMセッションマネージャーを利用してアクセスしていますので、インスタンスプロファイルには`AmazonSSMManagedInstanceCore`を設定しておきます。
+今回は以下のドメインで検証してみます。
 * アクセス許可
   https://www.google.com
 * アクセス拒否
   https://www.yahoo.co.jp
 
-また、環境構築にはTerraformを用いています。コードはこちらをご参照ください。
+また、環境構築にはTerraformを用いています。
 :::details terraformインストール
 https://developer.hashicorp.com/terraform/install
 
@@ -78,7 +86,9 @@ sudo yum -y install terraform
 ```
 :::
 
-[基本環境用コードはこちら](https://github.com/nnydtmg/terraform-aws-ec2-proxy/commit/96990019e702f4255911f62f412a0a951a79a028)
+環境構築用コードはこちらです。なお、各インスタンスには***EC2 Instance Connect Endpoint***を使用して接続しています。
+
+https://github.com/nnydtmg/terraform-aws-ec2-proxy
 
 
 ## 環境構築
@@ -157,18 +167,21 @@ acl step1 at_step SslBump1
 acl step2 at_step SslBump2
 acl step3 at_step SslBump3
 
-# アクセスリスト設定
+sslproxy_cert_error allow all
 ssl_bump peek step1 all
 ssl_bump peek step2 allowlist_ssl
 ssl_bump splice step3 allowlist_ssl
 ssl_bump terminate step2 blocklist_ssl
 ssl_bump bump all
 
+tls_outgoing_options capath=/etc/pki/tls/certs options=ALL
+sslcrtd_children 3
 sslcrtd_program /usr/lib64/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 20MB
 
 # Squid normally listens to port 3128
-http_port 3128 ###HTTPアクセス用 Tranceparentモードの有効化
-https_port 3129 intercept ssl-bump ssl-bump generate-host-certificates=on dynamic_cert_mem_cache_size=20MB cert=/etc/squid/cert.cer key=/etc/squid/key.pem cipher=HIGH:MEDIUM:!LOW:!RC4:!SEED:!IDEA:!3DES:!MD5:!EXP:!PSK:!DSS  ###HTTPSアクセス用 Tranceparentモードの有効化&ssldumpの有効化
+http_port 8080
+http_port 3128 transparent ###HTTPアクセス用 Tranceparentモードの有効化
+https_port 3129 intercept ssl-bump generate-host-certificates=on dynamic_cert_mem_cache_size=20MB tls-cert=/etc/squid/cert.cer tls-key=/etc/squid/key.pem cipher=HIGH:MEDIUM:!LOW:!RC4:!SEED:!IDEA:!3DES:!MD5:!EXP:!PSK:!DSS tls-dh=prime256v1:/etc/squid/bump_dhparam.pem ###HTTPSアクセス用 Tranceparentモードの有効化&ssldumpの有効化
 ```
 
 :::details squid.conf全量
@@ -274,6 +287,15 @@ access_log /var/log/squid/access.log customlog
 ```
 :::
 
+### アクセスリスト
+```conf
+acl allowlist_ssl ssl::server_name "/etc/squid/list/whitelist.txt"
+acl blocklist_ssl ssl::server_name "/etc/squid/list/blacklist.txt"
+acl step1 at_step SslBump1
+acl step2 at_step SslBump2
+acl step3 at_step SslBump3
+```
+
 アクセスリストの設定を行います。
 まずは、ホワイトリストとブラックリストを作成します。これは特に指定はないので、任意のテキスト形式で大丈夫です。
 今回は以下の構成で作成しています。
@@ -284,6 +306,47 @@ access_log /var/log/squid/access.log customlog
 ```txt:/etc/squid/list/blacklist.txt
 .yahoo.co.jp
 ```
+最後にSSL/TLSの3ハンドシェイクに沿ってStepを定義しています。このステップに応じてこの後制御を入れていきます。
+
+
+### SSL Bump
+```conf
+sslproxy_cert_error allow all
+ssl_bump peek step1 all
+ssl_bump peek step2 allowlist_ssl
+ssl_bump splice step3 allowlist_ssl
+ssl_bump terminate step2 blocklist_ssl
+ssl_bump bump all
+```
+上記で設定したACLに対して、どういったフィルタリングをするかを設定します。
+peek,splice,terminate,stare,bumpについては[こちらの公式サイト](https://www.squid-cache.org/Doc/config/ssl_bump/)をご確認いただければと思いますが、簡単にまとめると以下のような形になります。
+
+|アクション|対応ステップ|内容|
+|:--|:--|:--|
+|peek|step1, step2|step1でpeekルールに合致すると、step2に進み、もしあればTLS Client Helloを解析してSNIを抽出する。step2でpeekルールに合致すると、step3に進み、TLS Server Helloを解析し接続をspliceする可能性を維持しながらサーバー証明書を抽出する。|
+|splice|step1, step2, and sometimes step3|接続をデコードせずにTCPトンネルする。クライアントとサーバーはプロキシが存在しないかのように動作する。|
+|stare|step1, step2|step1でpeekルールに合致すると、step2に進み、もしあればTLS Client Helloを解析してSNIを抽出する。step2でpeekルールに合致すると、step3に進み、TLS Server Helloを解析し接続をbumpする可能性を維持しながらサーバー証明書を抽出する。|
+|bump|step1, step2, and sometimes step3|もしあればクライアントSNIを使用して、サーバーとのTLS接続を確立し、模倣したサーバー証明書を使用してクライアントとのTLS接続を確立する。しかし、step1でbumpルールに合致した場合、正常に動作しない(bug4327を参照)。|
+|terminate|step1, step2, step3|クライアントとサーバーのコネクションを切断する。|
+
+より詳細には[公式サイト](https://wiki.squid-cache.org/Features/SslPeekAndSplice)でも解説されているので、こちらもご確認ください。
+なお、私が経験したところでは、**splice**を指定してもk8sのCRDのとあるリポジトリへのアクセスがSSLエラーとなってしまいました。すべてのステップでホワイトリストに対して**peek**アクションを指定し、step2でホワイトリスト以外をterminateすると想定通りの挙動になったので完了としていますが、深掘りする必要があるなと感じています。
+
+
+### SSL Bumpオプション・ポート設定
+```conf
+tls_outgoing_options capath=/etc/pki/tls/certs options=ALL
+sslcrtd_children 3
+sslcrtd_program /usr/lib64/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 20MB
+
+# Squid normally listens to port 3128
+http_port 8080
+http_port 3128 transparent ###HTTPアクセス用 Tranceparentモードの有効化
+https_port 3129 intercept ssl-bump generate-host-certificates=on dynamic_cert_mem_cache_size=20MB tls-cert=/etc/squid/cert.cer tls-key=/etc/squid/key.pem cipher=HIGH:MEDIUM:!LOW:!RC4:!SEED:!IDEA:!3DES:!MD5:!EXP:!PSK:!DSS tls-dh=prime256v1:/etc/squid/bump_dhparam.pem ###HTTPSアクセス用 Tranceparentモードの有効化&ssldumpの有効化
+```
+上3行はSSL Bumpのキャッシュオプションです。下3行はSSL Bumpのポート設定なのですが、http_portが2つ空いているのは3128だけではparseエラー(`squid -k parse`)が発生してしまったため空けています。[こちら](https://tutorialmore.com/questions-290758.htm)を参考にしました。
+
+
 
 最後にSquidを起動して正常に起動すればOKです。
 ```bash
@@ -308,5 +371,9 @@ curl: (35) OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to www.yahoo.co.
 
 
 # さいごに
+ここまで読んでいただきありがとうございます。
+実際にはSquidのインストールやRouteTableの変更はインスタンス起動時の[ユーザーデータ](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/user-data.html)で実行しているので、その部分は別途まとめてみます。
 
+意外とユーザーとして関わることの多いProxyですが、実際に構築してみて仕組みや難しさ等体験できたので勉強になりました。
+Squidの設定内容についてはまだまだ追い切れていない部分もあるので、どこか別の機会にまとめてみようと思います。
 
