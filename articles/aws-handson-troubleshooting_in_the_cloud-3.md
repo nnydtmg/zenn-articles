@@ -316,6 +316,7 @@ VPCのコンソールからWebApp-VPCを選択し、リソースマップを確�
 # Issue3
 
 
+
 # Issue4
 
 
@@ -337,3 +338,4 @@ VPCのコンソールからWebApp-VPCを選択し、リソースマップを確�
 
 https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-1
 
+https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-2-1
