@@ -296,7 +296,7 @@ VPCのコンソールからWebApp-VPCを選択し、リソースマップを確�
 
 
 # Issue２
-次の問題は、Cloudwatchアラームを確認します。ELBのunhealthyHostCountAlarmがアラーム状態になっているので、これを解決していきます。
+次のシナリオは、Cloudwatchアラームを確認します。ELBのunhealthyHostCountAlarmがアラーム状態になっているので、これを解決していきます。
 
 ![](https://storage.googleapis.com/zenn-user-upload/00f68c6a7768-20240509.png)
 
@@ -315,6 +315,10 @@ ALBはデフォルトで**HTTP 200 OK**を正常とみなします。
 これによって問題が解消しました。
 
 # Issue3
+次のシナリオでは**HTTP 504**エラーへの対応です。
+CloudWatchメトリクスのELBアクセスログを確認すると、	**HTTPCode_Target_5XX_Count**が複数回カウントされているかと思います。これを解消していきます。
+
+まず、504エラーが起きる原因としては、
 
 
 
