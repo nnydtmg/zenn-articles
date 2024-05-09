@@ -19,6 +19,44 @@ https://catalog.us-east-1.prod.workshops.aws/workshops/fdf5673a-d606-4876-ab14-9
 別の章の記事は末尾に追記していきますので、気になる章はリンクから飛んでいただければと思います。
 
 # Networking and Web Services troubleshooting
+この章ではWEBサービスの健全性に関して、NWレベルからアプリケーションレベルまで一通りトラブルシューティングを行います。
+レコメンデーションサービスを提供しており、WEB3層アーキテクチャで実行されている環境に対してのトラブルシューティングなので、非常に多くの方に刺さる内容なのではないかと思います。
+
+# NW編概要
+環境構築はWorkshop資料の中にCloudformationテンプレートがあるのでそちらに沿って準備します。
+:::message alert
+コストとして円/日程度かかるので気になる方は環境削除を忘れずに。
+:::
+
+![](https://storage.googleapis.com/zenn-user-upload/1c50827d03cd-20240509.png)
+*workshop studioから引用*
+
+# Issue1
+最初のタスクはALBのタイムアウトへの対応です。普段からよく遭遇するトラブルの一つではないでしょうか。
+
+
+
+
+# Issue２
+
+
+# Issue3
+
+
+# Issue4
+
+
+# Issue5
+
+
+# Issue6
+
+
+# Issue7
+
+
+# Issue8
+
 
 
 
