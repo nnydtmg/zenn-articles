@@ -429,6 +429,24 @@ VPCのコンソールからVPCフローログを確認し、上記のアドレ�
 
 
 
+# 最後に
+かなり長くなってしまいました。
+この記事の中ではあまりX-Rayを多用しませんでした。基本的なトラブルシューティング方法としての観点などを記載してきたつもりですが、X-Rayを利用すればより短縮してトラブルシューティングに取り組むことが可能になるかもしれません。
+このように、属人化しがちなトラブルシューティングの勘所のようなものをツールを用いて、より簡単に同じレベルで見ていけるのがオブザーバビリティの利点です。
+
+この記事を読みながらワークショップを進めていただいた方は、ぜひX-Rayを使ったトラブルシューティングも体験してみてください。
+アプリケーションの遅延などがリソースマップになって可視化され、ドリルダウンによってログの確認まで進むことができるので、見るべき箇所が明確でよりスピーディに問題解決に向かえるかと思います。(こんなに長い記事にならなかったかも。。。)
+
+最後まで読んでいただきありがとうございました。
+ぜひ他の章もチャレンジしてみてください！
+
+
+# リンク
+
+https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-1
+
+https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-2-1
+
 
 # 参考
 ## Issue1
@@ -445,10 +463,3 @@ https://repost.aws/ja/knowledge-center/connect-s3-vpc-endpoint
 
 ## Issue6
 
-
-
-# リンク
-
-https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-1
-
-https://zenn.dev/nnydtmg/articles/aws-handson-troubleshooting_in_the_cloud-2-1
