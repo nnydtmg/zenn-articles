@@ -439,9 +439,54 @@ VPCのコンソールからVPCフローログを確認し、上記のアドレ�
 
 # Issue7
 ボーナス課題として2つ設定されていますので、お時間のある方は見てください。
+ボーナス1つ目はAPIをWell-Architected Frameworkに沿って別VPCに移行したことにより、接続ができなくなるというものです。
+
+先ほどのALBのURLの末尾に`/bonus`を追加するとボーナス用のサイトが表示されます。
+
+![](https://storage.googleapis.com/zenn-user-upload/6deee1612e66-20240519.png)
+
+どちらのコネクションもFAILEDで5秒程でタイムアウトしていることが分かります。サーバーへの接続が失敗している原因の要素として考えられるのは、NWレベルの疎通ができていないことが多いですが、AWS等クラウドプロバイダーを利用すると、その間にあるコンポーネントが多いので対象がいくつか考えられるかと思います。
+単純にルーティングの問題、セキュリティグループの問題、NACLの問題などが大きく関係しうるかと想像できるのでその辺りを見ていきます。
+
+まずはこの通信が、どこからどこへ接続しているかを確認しましょう。サイトからDETAILSをクリックすると、このように表示されます。
+> This test calls the API server (rsapi.supportworkshopapi.com) in the TGW-peered VPC. It requires the appropriate network routing for traffic from the webapp VPC to the API VPC.
+
+つまり、WebApp VPCからTGW-peered VPC内のAPIサーバーにAPIコールを行っているということです。ただし、今回はTCPレベルの疎通確認となっているので注意してください。
+この宛先となる`rsapi.supportworkshopapi.com`が何を指しているかは、Route53のレコードを確認してみましょう。
+
+![](https://storage.googleapis.com/zenn-user-upload/02c33d597226-20240519.png)
+
+`10.2.4.168`というアドレスへのAレコードが確認できたので、フローログを確認するとACCEPTされています。つまりフィルターによって拒否されているということではなさそうです。
+
+![](https://storage.googleapis.com/zenn-user-upload/b3e4a472200d-20240519.png)
+
+なので、他の可能性としてはルーティングのエラーです。
+現在WebApp-AppのルートテーブルにはTGWへのルートが存在しないことが分かります。なので、`10.2.4.0/24`のCIDRへのアクセスはTGWを経由して通信できるように設定を追加してあげましょう。
+
+![](https://storage.googleapis.com/zenn-user-upload/58862b380799-20240519.png)
+
+するとWEBサイト上でSUCCESSになることが確認できます。これによりこの章は完了です。
+
+ちなみに、TGWは複数VPCを接続するようなシステムを開発する際は、ほぼ必須で必要になるので、実際にTGWを設定してみるのもオススメします。
 
 
 # Issue8
+最後の課題です。TCPレベルの疎通はできているがHTTPレベルのテストが失敗しているということは、HTTPの通信をフィルタする機能がどこかにありそうだと考えられます。
+こちらもWEBサイトから詳細を確認してみましょう。
+
+> This test calls the API server (rsapi.supportworkshopapi.com) in the TGW-peered VPC. It requires the appropriate network routing for traffic from the webapp VPC to the API VPC. It also requires the API server to be running and for the request to successfully pass through the firewall.
+
+同じリクエストをしていそうですが、firewallを正常に通過しているかどうかが関係してきそうです。
+ではfirewall機能がどこにあるかというと、API VPCの中にfirewallサブネットがあり、さらにGatewayエンドポイントがあるのでNetwork Firewallが存在していそうです。VPCコンソールからNetwork Firewallを確認するとルールが設定されているのが確認できます。
+
+関連付けられているポリシーを確認すると、ルールグループが指定され、その中に`drop http any any -> any any (flow:to_server; http.host; content:"rsapi.supportworkshopapi.com"; sid:1;)`というルールが設定されています。
+これは`rsapi.supportworkshopapi.com`への通信をDROPするので、ここが原因でアクセスが失敗していると分かりました。
+
+このルールを削除して保存するとWEBサイトからSUCCESSになっていることが確認できるかと思います。
+
+![](https://storage.googleapis.com/zenn-user-upload/1bebe405ddcb-20240519.png)
+
+以上ですべての課題クリアです！
 
 
 
