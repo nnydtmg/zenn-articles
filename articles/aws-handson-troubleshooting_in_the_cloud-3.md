@@ -488,6 +488,10 @@ VPCのコンソールからVPCフローログを確認し、上記のアドレ�
 
 以上ですべての課題クリアです！
 
+最終的な構成図はこのようになっています。
+
+![](/images/aws-handson-troubleshooting-3/architecture.png)
+
 
 
 # 最後に
