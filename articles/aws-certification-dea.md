@@ -3,7 +3,7 @@ title: "AWS Certified Data Engineer - Associate 合格までの道のり"
 emoji: "🙌"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","合格記","認定資格"]
-published: false
+published: true
 ---
 2024/5/25にAWS認定試験**Data Engineer - Associate**に合格しました！
 
