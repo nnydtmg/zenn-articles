@@ -3,7 +3,7 @@ title: "AWSでサブドメインを別アカウントに委任する"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","route53",]
-published: false
+published: true
 ---
 
 # はじめに
@@ -60,4 +60,5 @@ NSレコードが作成されるので、これをAWSのrootアカウントのRo
 簡単な記事になりましたが、意外と設定する場面が少なく忘れがちなので備忘として残しておきます。
 ちなみに、子アカウント内でさらにサブドメインを利用してアプリを公開したいような場合は、証明書を 「*.example1.aws.example.com」で取得するようにすると、www.example1.aws.example.comのようなドメインで利用できるようになります。
 
+なお、CloudFrontで証明書を利用したい場合は、us-east-1で証明書がないとエラーになるので、実際に利用される場合はご注意ください。
 
