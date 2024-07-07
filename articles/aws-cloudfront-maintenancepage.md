@@ -45,10 +45,49 @@ published: false
 
 # 実際の挙動
 ## ALBのリスナールールで特定の時間にカスタムレスポンスを返すようにする
+まずはCDKで構築した環境にALBのみ追加します。(本来はEC2などで正しくレスポンスを返すのが良いですが、今回は簡略化しています。)
+ALBを作成後はCloudFrontのビヘイビアとオリジンにALBを指定しておきます。
+次にALBのリスナーページで正常レスポンスのルールとメンテナンス用のルールを作成します。
+
+![](https://storage.googleapis.com/zenn-user-upload/63553f6b180e-20240707.png)
+
+まずは正常なレスポンスの場合を確認します。想定通り200のレスポンスを返しています。
+
+![](https://storage.googleapis.com/zenn-user-upload/2374caf96803-20240707.png)
+
+次にルールの優先順位を変更してみます。
+
+![](https://storage.googleapis.com/zenn-user-upload/7ad8d42cbd6d-20240707.png)
+
+想定通りメンテナンス用の固定レスポンスが表示されました。
+ここにメンテナンス用のHTMLをベタ書きしても良いですが、リッチなものであればリダイレクトしても良いかと思います。
+
+![](https://storage.googleapis.com/zenn-user-upload/3db1c7702636-20240707.png)
+
+ここまででALBのみでメンテナンスレスポンスを返す動作を確認できました。
+
 
 ## ALBのリスナールールを変更して特定の時間にエラーレスポンスコードを返し、CloudFront側でエラーページの設定を行う
+先ほどのノーマルHTMLではなく、きちんとしたメンテナンス用のページを表示したい場合を検証します。
+まずはリスナールールを元に戻しておきます。
+CloudFront側のエラーページの設定で503の設定を追加します。503のレスポンスの場合はS3内に配置した`maintenance.html`を表示するようにします。
+
+![](https://storage.googleapis.com/zenn-user-upload/86fa1e95b15a-20240707.png)
+
+この状態で再度検証してみます。まずは200エラーが表示されている状態です。
+
+![](https://storage.googleapis.com/zenn-user-upload/2374caf96803-20240707.png)
+
+次にALBのリスナールールを変更して検証します。
+
+![](https://storage.googleapis.com/zenn-user-upload/9daf991be19a-20240707.png)
+
+想定通りメンテナンス用のHTMLを表示してくれています。
 
 ## WAFのルールで任意の通信をブロックし、CloudFront側でエラーページの設定を行う
+
+
+
 
 ## CloudFrontのデフォルトページを切り替える
 
