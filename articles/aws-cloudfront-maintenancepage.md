@@ -3,7 +3,7 @@ title: "AWS CloudFrontでメンテナンスページに切り替える方法"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","cdk","cloudfront"]
-published: false
+published: true
 ---
 
 # はじめに
