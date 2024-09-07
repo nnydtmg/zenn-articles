@@ -87,8 +87,30 @@ const kvsHandle = cf.kvs(kvsId);
 PWAとしてWEBアプリを利用していて、そのクライアントアプリからの利用に制限したい場合、`user-agent`ヘッダーなどを利用してアクセス元の検証をすることがあるかもしれません。そう言った場合に、CloudFront Functionでヘッダー検証をして簡易的なWAFのように動作させること
 が可能です。
 
-```
+```javascript
+function handler(event) {
+    var request = event.request;
+    // アクセス元IPをリクエストから取得
+    var clientHeader = request.headers;
+    // アクセス許可するIPを設定
+    var HEADER_LIST = [
+     'test'
+    ];
+    // アクセス元IPがホワイトリストにあればTrue
+    var isPermittedHeader = HEADER_LIST.includes(clientHeader['user-agent']);
 
+    if (isPermittedHeader) {
+        // trueの場合はリクエストをそのままオリジンに返す
+        return request;
+    } else {
+        var response = {
+            statusCode: 403,
+            statusDescription: 'Forbidden',
+        }
+        // falseの場合はViewerに対してレスポンスを返す
+        return response;
+    }
+}
 
 ```
 
