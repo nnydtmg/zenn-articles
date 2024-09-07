@@ -3,7 +3,7 @@ title: "CloudFront Function v2はかなり使える(かも)"
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","cloudfront","waf"]
-published: false
+published: true
 ---
 # はじめに
 以前[こちらの記事](https://zenn.dev/nnydtmg/articles/aws-cloudfront-maintenancepage)でCloudFrontで配信しているWEBページをメンテナンス時にメンテナンスページに遷移させるためにどうするか、という記事を書きました。
