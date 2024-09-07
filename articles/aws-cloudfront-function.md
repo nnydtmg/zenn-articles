@@ -62,7 +62,6 @@ function handler(event) {
             statusCode: 403,
             statusDescription: 'Forbidden',
         }
-
         // falseの場合はViewerに対してレスポンスを返す
         return response;
     }
@@ -76,10 +75,28 @@ function handler(event) {
 import cf from 'cloudfront'; //ランタイムv2から利用可能に
 const kvsId = '<KVS ID>'; // KeyValueStore の ID を記述
 const kvsHandle = cf.kvs(kvsId);
+function handler(event) {
+    // KVSから値を取得
+    var startTimeStr = await kvsHandle.get('START_TIME',{format: 'string'});
+    var endTimeStr = await kvsHandle.get('END_TIME',{format: 'string'});
+    var startTimeNum = Number(startTimeStr);
+    var endTimeNum = Number(endTimeStr);
 
+    var currentDate = new Date(Date.now);
+    currentDate.setHours(currentDate.getHours() + 9); //JSTに変換
+    var currentTimeNum = Number(currentDate.getHours());
 
-
-
+    if(startTimeNum <= currentTimeNum || currentTimeNum <= endTimeNum){
+        var response = {
+            statusCode: 503,
+            statusDescription: 'Found',
+            headers:{location: {value: 'erroURL'}}
+        }
+        // メンテナンス時間の場合はerrorURLにリダイレクトするよう設定
+        return response;
+    }
+    return request;
+}
 ```
 
 
@@ -97,7 +114,7 @@ function handler(event) {
      'test'
     ];
     // アクセス元IPがホワイトリストにあればTrue
-    var isPermittedHeader = HEADER_LIST.includes(clientHeader['user-agent']);
+    var isPermittedHeader = (clientHeader['user-agent'].value.includes(HEADER_LIST));
 
     if (isPermittedHeader) {
         // trueの場合はリクエストをそのままオリジンに返す
@@ -111,7 +128,6 @@ function handler(event) {
         return response;
     }
 }
-
 ```
 
 
