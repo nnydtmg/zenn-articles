@@ -27,7 +27,7 @@ CloudFront FunctionとはAWSのエッジロケーションで実行できる、�
 詳しくは[こちらの記事](https://dev.classmethod.jp/articles/cloudfront-functions-usecases/)が非常にわかりやすいかと思いますので、ご参照ください。
 
 上述の記事の中で、メンテナンス時のページ切り替えや運用拠点からのIP許可はまさにこの用途にぴったりです。
-と言うことで、実際に作ってみました。
+
 
 ## CloudFront Function ランタイムv2
 [CloudFrontのKey Value Store(KVS)](https://aws.amazon.com/jp/about-aws/whats-new/2023/11/amazon-cloudfront-keyvaluestore-globally-managed-key-value-datastore/)がリリースされた(このアップデートがめちゃくちゃでかい)タイミングで、しれっと追加されていた **CloudFront Functions の JavaScript ランタイム 2.0** (CloudFront Functions v2)ですが、これらがCloudFront Functionの利用幅をかなり広げていると思います。
@@ -36,7 +36,7 @@ CloudFront FunctionとはAWSのエッジロケーションで実行できる、�
 
 
 # 実際に使ってみた
-今回はIP制限、時限(可変)でのメンテナンスページへの切り替え(パス変更・KVS利用)、ヘッダー検証という3つの機能を利用しましたので、簡単にコード例をそれぞれご紹介します。
+今回はIP制限、時限(可変)でのメンテナンスページへのリダイレクト(KVS利用)、ヘッダー検証という3つの機能を利用しましたので、簡単にコード例をそれぞれご紹介します。
 
 ## IP制限
 簡単なコード例です。リクエストの`viewer.ip`をチェックして通信可否を判断し、オリジンへリクエストするかエラーレスポンスを返す動作をします。
@@ -130,4 +130,22 @@ function handler(event) {
 }
 ```
 
+
+## その他
+### パスの書き換え
+SPAではよくあることかと思いますが、仮想ルートに遷移した状態でリロードした場合、実際にはそのパスにコンテンツがないため、403などのレスポンスになってしまいます。それを防ぐために、/index.html以外へのアクセスをすべてindex.htmlに書き換えるという動作が可能です。
+
+### 認証
+JWTの検証もできるように、Bearer認証やBasic認証を簡単に導入することが可能です。さらにコード自体へのユーザー情報を記載する必要もKVSの登場でなくなりました。
+Cognitoを使うほどでもないユーザー認証であればCloudFront Functionで簡単に導入してしまいましょう。
+
+### 公式の一覧
+上記以外にもAWSが提示している使用例がありますので、こちらをご覧ください。
+https://docs.aws.amazon.com/ja_jp/AmazonCloudFront/latest/DeveloperGuide/functions-example-code.html
+
+# 終わりに
+色々試行錯誤した結果、CloudFront Functionが要件を満たしつつ、コスト的にもメリットがあることがわかりました。
+さらに、思ったよりもCloudFront Functionの利用範囲が広く、今後もいいお付き合いができそうだなと感じました。
+
+そこまで話題になることはないですが、CDNを代表とするエッジコンピューティングをうまく使えると、アプリ自体へのメリットもかなり出せると感じましたので、今後は積極的にエッジ活用なども勉強していこうと思います！
 
