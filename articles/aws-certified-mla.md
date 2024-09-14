@@ -78,3 +78,7 @@ https://explore.skillbuilder.aws/learn/course/18145/play/97255/aws-certified-dat
 # 宣伝
 あとがきにも書いた通り、この資格取得の話をとある勉強会でしゃべる予定ですので、ぜひご参加ください！
 イベントページが公開されたらリンクを貼りますm(_ _)m
+
+### 2024/9/14追記
+以下のイベントでAWS認定試験取得のコツと合わせて登壇します！お時間ある方はオンラインもあるのでぜひ！
+https://fin-jaws.connpass.com/event/330613/
