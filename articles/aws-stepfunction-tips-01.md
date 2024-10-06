@@ -28,6 +28,12 @@ AWSだけでなく、3rdパーティのAPIを実行することも可能にな�
 基本的な構築方法については、[こちら](https://catalog.workshops.aws/stepfunctions/en-US/)のワークショップを試してみてください。
 
 
+# 変数操作
+
+
+# 日付操作
+
+
 # 
 
 
