@@ -29,12 +29,103 @@ AWSだけでなく、3rdパーティのAPIを実行することも可能にな�
 
 
 # 変数操作
+変数操作については、**Pass**ステートを利用します。
+![](https://storage.googleapis.com/zenn-user-upload/ca70ca74853c-20241012.png)
+
+Passステート内で**Parameters**に変数化したい文字列 or JSON or 数値(後述する注意あり)を設定します。この例では、`Item`という変数に`Test`が入っている状態です。
+この`Item`という変数を次のステートで利用することができます。変数を利用する場合は、JSONを操作する形になります。
+
+![](https://storage.googleapis.com/zenn-user-upload/7cc5681639b1-20241012.png)
+
+JSONを利用する際は、Keyの最後に`.$`、Valueの頭に`$.`をつけなければいけません。
+これを実行すると以下のとおり、実行結果出力には先頭に設定した`Test`が出力されていることがわかります。
+
+![](https://storage.googleapis.com/zenn-user-upload/19d88ccbf396-20241012.png)
+
+ここまでで変数の基本的な使い方は分かったと思います。
+では、これをさらに次のステートで利用してみましょう。同じ定義のステートを追加してみます。
+
+![](https://storage.googleapis.com/zenn-user-upload/6ca08c94a548-20241012.png)
+
+これで実行してみると以下のとおり失敗します。
+
+![](https://storage.googleapis.com/zenn-user-upload/8b80b449dc9d-20241012.png)
+
+これは、アウトプットを設定しないと、常に全てを上書きしてしまうからです。
+例えば、先述したとおり直前のステートの出力は直後で利用できるので、以下はうまく動作します。
+
+![](https://storage.googleapis.com/zenn-user-upload/2ed86a5228e3-20241012.png)
+
+![](https://storage.googleapis.com/zenn-user-upload/2eca8aeb51e6-20241012.png)
+
+この形で受け渡すことで要件を満たせれば良いですが、さらに後続でも利用したい場面があるかと思います。そんな時には、ステートごとに設定できる**出力(アウトプット)**を利用します。
+
+![](https://storage.googleapis.com/zenn-user-upload/891485b4ae1c-20241012.png)
+
+こうすることで、`SetEnvValue`がJSONキーとなって後続に受け渡すことができます。ただし、他のステートでもやることがあるので注意です。
+
+まずは、ParametersでJSONキーを指定する必要があります。
+
+![](https://storage.googleapis.com/zenn-user-upload/543cf80f47aa-20241012.png)
+
+さらに、次のステートでもアウトプットを設定しないといけません。これをしないと先ほど同様上書きされて後続で一つ目の値を利用できません。
+
+![](https://storage.googleapis.com/zenn-user-upload/4f0b9e6fb789-20241012.png)
+
+最後のステートで両方の値を出力してみます。
+
+![](https://storage.googleapis.com/zenn-user-upload/f2d87d4f1691-20241012.png)
+
+![](https://storage.googleapis.com/zenn-user-upload/de998bf6e0bc-20241012.png)
+
+これによって、複数のステートを跨いで変数を利用することができるようになりました。
+ただし、これだとAPIを実行した際にレスポンスが全てパラメータに入ってきて、出力が追いにくくなることもあるので、**OutputPath**やAPIのステートにある**ResultSelector**を利用することをオススメします。この辺りの変数の位置付けについては[公式ガイド](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/concepts-input-output-filtering.html)や[クラメソさんブログ](https://dev.classmethod.jp/articles/step-functions-parameters/)を参照して理解を深めていただければと思います。
+
 
 
 # 日付操作
+基本的にStepFunctionsで日付の加減算や比較判定などの日付操作をすることはできません。唯一利用できる時間として、[**コンテキストオブジェクト**](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/input-output-contextobject.html)から得られる実行開始時間となります。
+コンテキストオブジェクトを利用するためには以下のようにPassステートを利用します。
+
+![](https://storage.googleapis.com/zenn-user-upload/491cb4983808-20241012.png)
+
+実行結果は以下のようになり、実行に関する各種情報が取れているのがわかります。
+
+![](https://storage.googleapis.com/zenn-user-upload/b00b0593b84f-20241012.png)
+
+ここから、`Execution.StartTime`を取得すれば実行開始時間が利用できます。
+さらに、[**組み込み関数**](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/intrinsic-functions.html)を利用すると、日付と時間それぞれで利用するということもできます。
+例えば、以下をPassステートに渡すと、yyyy-mm-dd形式の日付が取得できます。
+
+```
+{
+    "Date.$":"States.ArrayGetItem(States.StringSplit($$.Execution.StartTime, 'T'),0)"
+}
+```
+
+![](https://storage.googleapis.com/zenn-user-upload/613d10b8eea2-20241012.png)
+
+簡単に説明すると、`$$.Execution.StartTime`で実行時間を取得し、`States.StringSplit`で`T`を基準に文字列を分割して配列化します。最後に、`States.ArrayGetItem`で0番目の要素を取得して日付を抽出しています。
+これを応用すると、アカウントIDやリージョンなども取得できます。
+
+### アカウントIDの取得
+```
+{
+    "AccountId.$":"States.ArrayGetItem(States.StringSplit($$.Execution.Id, ':'),4)"
+}
+```
+
+### リージョンの取得
+```
+{
+    "Region.$":"States.ArrayGetItem(States.StringSplit($$.Execution.Id, ':'),3)"
+}
+```
 
 
-# 
+# 実行時のInput Value
+
+
 
 
 
