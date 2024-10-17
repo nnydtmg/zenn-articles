@@ -34,11 +34,23 @@ AWSだけでなく、3rdパーティのAPIを実行することも可能にな�
 
 Passステート内で**Parameters**に変数化したい文字列 or JSON or 数値(後述する注意あり)を設定します。この例では、`Item`という変数に`Test`が入っている状態です。
 この`Item`という変数を次のステートで利用することができます。変数を利用する場合は、JSONを操作する形になります。
+```json
+{
+    "Item": "Test"
+}
+```
+
 
 ![](https://storage.googleapis.com/zenn-user-upload/7cc5681639b1-20241012.png)
 
 JSONを利用する際は、Keyの最後に`.$`、Valueの頭に`$.`をつけなければいけません。
 これを実行すると以下のとおり、実行結果出力には先頭に設定した`Test`が出力されていることがわかります。
+
+```json
+{
+    "InputValue.$": "$.Item"
+}
+```
 
 ![](https://storage.googleapis.com/zenn-user-upload/19d88ccbf396-20241012.png)
 
@@ -56,30 +68,50 @@ JSONを利用する際は、Keyの最後に`.$`、Valueの頭に`$.`をつけな
 
 ![](https://storage.googleapis.com/zenn-user-upload/2ed86a5228e3-20241012.png)
 
+```json
+{
+    "InputValue.$": "$.InputValue"
+}
+```
+
 ![](https://storage.googleapis.com/zenn-user-upload/2eca8aeb51e6-20241012.png)
 
-この形で受け渡すことで要件を満たせれば良いですが、さらに後続でも利用したい場面があるかと思います。そんな時には、ステートごとに設定できる**出力(アウトプット)**を利用します。
+この形で受け渡すことで要件を満たせれば良いですが、さらに後続でも利用したい場面があるかと思います。そんな時には、ステートごとに設定できる **出力(アウトプット)** を利用します。
+以下の例では、**ResultPath** に`$.SetEnvValue`と設定しています。
 
 ![](https://storage.googleapis.com/zenn-user-upload/891485b4ae1c-20241012.png)
 
-こうすることで、`SetEnvValue`がJSONキーとなって後続に受け渡すことができます。ただし、他のステートでもやることがあるので注意です。
+こうすることで、`SetEnvValue`がJSONキーとなって後続に受け渡すことができます。ただし、後続の他のステートでも注意することがあります。
 
 まずは、ParametersでJSONキーを指定する必要があります。
+
+```json
+{
+    "InputValue.$": "$.SetEnvValue.Item"
+}
+```
 
 ![](https://storage.googleapis.com/zenn-user-upload/543cf80f47aa-20241012.png)
 
 さらに、次のステートでもアウトプットを設定しないといけません。これをしないと先ほど同様上書きされて後続で一つ目の値を利用できません。
+**ResultPath** に`$.Output1`と設定します。
 
 ![](https://storage.googleapis.com/zenn-user-upload/4f0b9e6fb789-20241012.png)
 
 最後のステートで両方の値を出力してみます。
+```json
+{
+    "InputValue.$": "$.SetEnvValue.Item",
+    "Output1Value.$": "$.Output1.InputValue"
+}
+```
 
 ![](https://storage.googleapis.com/zenn-user-upload/f2d87d4f1691-20241012.png)
 
 ![](https://storage.googleapis.com/zenn-user-upload/de998bf6e0bc-20241012.png)
 
 これによって、複数のステートを跨いで変数を利用することができるようになりました。
-ただし、これだとAPIを実行した際にレスポンスが全てパラメータに入ってきて、出力が追いにくくなることもあるので、**OutputPath**やAPIのステートにある**ResultSelector**を利用することをオススメします。この辺りの変数の位置付けについては[公式ガイド](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/concepts-input-output-filtering.html)や[クラメソさんブログ](https://dev.classmethod.jp/articles/step-functions-parameters/)を参照して理解を深めていただければと思います。
+ただし、これだとAPIを実行した際にレスポンスが全てパラメータに入ってきて、出力が追いにくくなることもあるので、**OutputPath** やAPIのステートにある **ResultSelector** を利用することをオススメします。この辺りの変数の位置付けについては[公式ガイド](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/concepts-input-output-filtering.html)や[クラメソさんブログ](https://dev.classmethod.jp/articles/step-functions-parameters/)を参照して理解を深めていただければと思います。
 
 
 
@@ -97,7 +129,7 @@ JSONを利用する際は、Keyの最後に`.$`、Valueの頭に`$.`をつけな
 さらに、[**組み込み関数**](https://docs.aws.amazon.com/ja_jp/step-functions/latest/dg/intrinsic-functions.html)を利用すると、日付と時間それぞれで利用するということもできます。
 例えば、以下をPassステートに渡すと、yyyy-mm-dd形式の日付が取得できます。
 
-```
+```json
 {
     "Date.$":"States.ArrayGetItem(States.StringSplit($$.Execution.StartTime, 'T'),0)"
 }
@@ -109,14 +141,14 @@ JSONを利用する際は、Keyの最後に`.$`、Valueの頭に`$.`をつけな
 これを応用すると、アカウントIDやリージョンなども取得できます。
 
 ### アカウントIDの取得
-```
+```json
 {
     "AccountId.$":"States.ArrayGetItem(States.StringSplit($$.Execution.Id, ':'),4)"
 }
 ```
 
 ### リージョンの取得
-```
+```json
 {
     "Region.$":"States.ArrayGetItem(States.StringSplit($$.Execution.Id, ':'),3)"
 }
@@ -124,6 +156,18 @@ JSONを利用する際は、Keyの最後に`.$`、Valueの頭に`$.`をつけな
 
 
 # 実行時のInput Value
+実行時に任意の文字列をインプットとして与えることが出来ます。これによって、同じステートマシンの中でインプットに応じた処理を実装することが可能です。
+例えば、Input ValueにECS RunTaskのOverrideをセットして、RunTaskのみを実行する子ステートマシンを呼び出すことで、コンポーネントのように使いまわすといった使い方が想定できます。
+
+Input Valueについても、先頭Passステートでの利用だけでなく、コンテキストオブジェクトから利用できるので用途に応じて取得方法を使い分けるのが良いかと思います。
+
+### 先頭Passステートでの変数化
+記事冒頭のPassステートに`Test`という文言をセットしている部分を実行時に指定できるようにしてみます。
+
+まずは、Passステートの中で以下のように設定します。
+```
+
+```
 
 
 
