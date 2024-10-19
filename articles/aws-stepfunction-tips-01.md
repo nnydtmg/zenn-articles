@@ -3,7 +3,7 @@ title: "AWS Step Functionsでできること・できないこと"
 emoji: "💨"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","stepfunction"]
-published: false
+published: true
 ---
 
 # はじめに
