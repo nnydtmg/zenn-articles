@@ -165,12 +165,25 @@ Input Valueについても、先頭Passステートでの利用だけでなく�
 記事冒頭のPassステートに`Test`という文言をセットしている部分を実行時に指定できるようにしてみます。
 
 まずは、Passステートの中で以下のように設定します。
+```json
+{
+  "Input.$": "$$.Execution.Input.InputValue"
+}
 ```
 
+この状態で実行時に以下のJSONを渡してみると、実行時の値がステートマシン内で利用できていることがわかります。
+```json
+{
+  "InputValue":"InputTest" 
+}
 ```
+![](https://storage.googleapis.com/zenn-user-upload/fe31943fdb1f-20241019.png)
 
 
+![](https://storage.googleapis.com/zenn-user-upload/70cc2dd40954-20241019.png)
 
+この仕組みはステートマシン内のどのステートでも利用できるので、実行時の呼び出しによって処理を変える場合はこちらの利用方法をとることをオススメします。
+ここで読み込んだ値は上述したとおり後続での利用もできますが、複数ステートで利用する場合はアウトプットをうまく活用するようにしてください。
 
 
 
