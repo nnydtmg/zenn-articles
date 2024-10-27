@@ -211,6 +211,22 @@ Input Valueについても、先頭Passステートでの利用だけでなく�
 2つ目のステートでもInputをうまく出力できていることがわかります。
 
 
+### 追記(変数操作)
+そのステートの出力結果を必要とせず、単純にその前の状態維持したい場合は、Outputの選択で**Discard result and keep original input**を選択してください。
+
+ステートを一つ足して、2つ目のステートで上記の設定をしてみます。
+![](https://storage.googleapis.com/zenn-user-upload/af8d218e1ad3-20241027.png)
+
+![](https://storage.googleapis.com/zenn-user-upload/6d1ec49a4f0b-20241027.png)
+
+![](https://storage.googleapis.com/zenn-user-upload/839561cc5a09-20241027.png)
+
+先ほどと同様にインプットを与えて実行してみます。
+![](https://storage.googleapis.com/zenn-user-upload/135542847f52-20241027.png)
+
+きちんと2番目のステートでアウトプットを設定していない状態でも、与えられたインプットをそのままアウトプットに渡して、3番目のステートで1番目のアウトプット結果を利用できています。
+
+
 # さいごに
 ここまでで、StepFunctions自体の状態を利用してできることとTipsを合わせて記載してきました。
 
