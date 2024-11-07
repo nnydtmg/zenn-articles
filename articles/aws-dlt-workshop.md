@@ -7,7 +7,7 @@ published: false
 ---
 
 # はじめに
-先日行われた「[秋のobservability祭り](https://aws-startup-lofts.com/apj/loft/tokyo/event/3b5d70e2-9674-475b-8bd7-754b608b64b7)」に参加して、負荷テストをAWSでマネージドに行うことができるサービスが、ワークショップで公開されているということを知ったのでそちらを実践しながら、サービスの詳細と使ってみての感想など簡単にまとめていければと思います。
+先日行われた「[秋のobservability祭り](https://aws-startup-lofts.com/apj/loft/tokyo/event/3b5d70e2-9674-475b-8bd7-754b608b64b7)」に参加して、負荷テストをAWSでマネージドに行うことができるサービスが、ワークショップで公開されているということを知ったので、そちらを実践しながらサービスの詳細と使ってみての感想など簡単にまとめていければと思います。
 
 参加レポートも記事にしているので、よければ読んでください！
 https://zenn.dev/nnydtmg/articles/aws-o11yfes-2024-autumn
@@ -26,6 +26,13 @@ https://zenn.dev/nnydtmg/articles/aws-o11yfes-2024-autumn
 このDLTは、GUIでテストシナリオを定義するとS3に定義が配置され、それを元にFargateをベースにテスト実行環境が立ち上がるというものになります。この実行タスク数や同時実行数などもGUIで簡単に設定できるので、AWSに慣れていなくてもテスト実行が可能となっています。
 さらに嬉しいのが、実行環境構築は基本的に**CloudFormationのテンプレートで構築**でき、任意のVPCを指定することで**VPC内のリソースに対してもテスト実行が可能**になるという点や、テンプレート内に**CLoudWatchのダッシュボードも含まれている**ので、テストに必要なメトリクスの取得にも困りません。
 必要に応じて時系列データベースである[**InfluxDB**](https://aws.amazon.com/jp/blogs/news/run-and-manage-open-source-influxdb-databases-with-amazon-timestream/)をJMeterメトリクスのデータストアにしてテストを実行することで、時系列データとして保管するしながらダッシュボード化することも可能となっています。
+
+DLTソリューションのCloudFormationテンプレートは[こちら](https://aws.amazon.com/jp/solutions/implementations/distributed-load-testing-on-aws/)から利用できます。
+
+# Workshopをやってみる
+
+
+
 
 
 
