@@ -3,7 +3,7 @@ title: "AWSの分散負荷テストソリューション ワークショップ�
 emoji: "🌟"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["AWS","DLT","Jmeter"]
-published: false
+published: true
 ---
 
 # はじめに
