@@ -100,7 +100,7 @@ https://speakerdeck.com/nnydtmg/yu-zhou-zui-su-norantirecap-lthui-kai-fa-zhe-tur
 コミュニティで出会った @hatake_book さん、@ashi_ssan さんと[Toranomon Tech Hub](https://toranomon-tech-hub.connpass.com/)を立ち上げ、コミュニティ運営に興味のあった @yuppe0328 さんにも参加いただき、同世代の若手で虎ノ門界隈を盛り上げようと勉強会を画策中です！！
 虎ノ門付近に何かしら縁がある(なくてもこじつけていただければOK)方はぜひご参加いただければと思います！
 クラウドに限らずエンジニア技術に関わることなら何でもOKなのでテーマに沿ってLT登壇などもお待ちしています！！
-次回は**1/20(月)**に開催予定なので、ぜひ[connpass](https://toranomon-tech-hub.connpass.com/event/337629/)からお申し込みください！
+次回は **1/20(月)** に開催予定なので、ぜひ[connpass](https://toranomon-tech-hub.connpass.com/event/337629/)からお申し込みください！
 
 
 # 総括
