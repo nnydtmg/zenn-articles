@@ -80,7 +80,12 @@ https://speakerdeck.com/nnydtmg/yu-zhou-zui-su-norantirecap-lthui-kai-fa-zhe-tur
 
 ### OpsJAWS Meetup32
 
-こちらは本日(12/11)に実施されるので、そちらを踏まえて追記します。
+https://speakerdeck.com/nnydtmg/risosunoteremetorimoguan-li-sitai-cloudwatch-telemetryguan-li-nogoshao-jie
+
+上記のランチタイムLT会の2日後に実施した[OpsJAWS Meetup32](https://opsjaws.connpass.com/event/336277/)で発表した内容です。
+CloudWatchでVPCフローログの有効化やEC2の詳細メトリクスが設定されているかを一元管理できる機能が追加されたので、そちらについてLTをしています。
+Ops周りも非常に面白いアップデートが多かったので、今後のOpsJAWSでも各所で取り上げていければなと思っています。
+
 
 ## その他
 ### JAWS DAYS 2024
