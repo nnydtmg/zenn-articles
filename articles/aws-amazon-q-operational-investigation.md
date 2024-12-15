@@ -75,7 +75,7 @@ https://aws.amazon.com/jp/blogs/news/top-announcements-for-aws-cloud-operations-
 ## 有効化
 実際にアカウントで機能を利用するためには、アカウントで機能を有効化する必要があります。
 
-![](https://storage.googleapis.com/zenn-user-upload/16a68e04fc3d-20241215.png)
+![](https://storage.googleapis.com/zenn-user-upload/116ed1878332-20241215.png)
 
 `Configure for this account`から設定していきます。
 
