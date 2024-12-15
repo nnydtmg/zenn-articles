@@ -125,7 +125,7 @@ Amazon Q logsを開いてみると、このアラームが設定されてからQ
 QからのSuggestが全然来ないので、若干今回の例は悪かったかもしれません。
 
 メトリクス側からInvestigatonに追加することも可能です。
-X-Rayの画面からメトリクスを選択し、`既存の調査に追加`を選択するとInvestigation側にFeedが追加されています。
+X-Rayの画面からメトリクスを選択し、`既存の調査に追加`を選択するとInvestigation側にFeedが追加されています。他にもCloudWatchアラームからも`既存の調査に追加`するためのプルダウンが存在するので、こちらからもFeedに追加していくことができます。
 また、`Add note`からコメントを追加することもできるので、障害調査の記録を全て時系列順にまとめていくことができます。
 
 ![](https://storage.googleapis.com/zenn-user-upload/9d4f588b7e35-20241215.png)
