@@ -3,7 +3,7 @@ title: "Amazon Q Developerを使って障害調査を高速化！"
 emoji: "🙆"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","amazonQ","cloudwatch"]
-published: false
+published: true
 ---
 
 この記事は[JAWS-UG（AWS Users Group – Japan） Advent Calendar 2024](https://qiita.com/advent-calendar/2024/jaws-ug)の17日目の記事です。
