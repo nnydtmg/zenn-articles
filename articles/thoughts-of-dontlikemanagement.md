@@ -3,7 +3,7 @@ title: "「マネジメントは嫌いですけど」を読んで"
 emoji: "👋"
 type: "idea" # tech: 技術記事 / idea: アイデア
 topics: ["感想文"]
-published: false
+published: true
 ---
 
 こちらの本を読んでの感想をつらつらと書いていきます。書評という高尚なものではなく、単純に自分自身の感想文として書いています。
