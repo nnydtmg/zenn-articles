@@ -45,11 +45,12 @@ https://aws.amazon.com/jp/aws-transfer-family/
 ## 今回の構成
 今回は以下の構成を前提に記事を書いていきます。
 
+[](../images/aws-transfer-ftp-iam/01_architecture.svg)
 
 Transfer for FTPは[カスタムIDプロバイダー](https://docs.aws.amazon.com/ja_jp/transfer/latest/userguide/custom-identity-provider-users.html)を使用して、ID/PW認証をします。
 
 ## 環境構築
-今回は
+
 
 
 
