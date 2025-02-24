@@ -18,8 +18,10 @@ published: false
 :::
 
 1. Transfer FamilyのエンドポイントはFTPサーバーの役割をする
-2. このFTPサーバーはIAMロールを使用して対象のS3・EFSへファイル転送を行う
+2. S3・EFSへファイル転送を行うにはIAMの権限が必要
 3. つまりエンドポイント（FTPサーバー）からSTSへの通信ができるようにする必要がある
+
+これらがどういうことかを順にご説明していきます。
 
 
 # Transfer Familyとは
@@ -42,14 +44,29 @@ https://aws.amazon.com/jp/aws-transfer-family/
 
 
 # 検証
-## 今回の構成
+## 今回の初期構成
 今回は以下の構成を前提に記事を書いていきます。
 
 ![](/images/aws-transfer-ftp-iam/01_architecture.png)
 
+擬似的にClient-VPCにオンプレミス環境のFTPクライアントを模したEC2サーバーを配置し、Transfer for FTPが閉域環境内に構築されている状態にします。また、この時Transfer for FTP以外のエンドポイントは現時点では作成しません。
 Transfer for FTPは[カスタムIDプロバイダー](https://docs.aws.amazon.com/ja_jp/transfer/latest/userguide/custom-identity-provider-users.html)を使用して、ID/PW認証をします。
 
-## 環境構築
+
+## ベース環境構築
+VPCの構築は構成図の通り行います。
+Client-VPCとFTP-VPCはIPリーチャブルなCIDRで構築し、VPC Peeringで接続します。
+
+FTP-VPCのCfnテンプレートは[こちら](https://github.com/nnydtmg/aws-cloudformation-templates/blob/main/01.aws-vpc-nopublic.yaml)です。
+Client-VPCのCfnテンプレートは[こちら](https://github.com/nnydtmg/aws-cloudformation-templates/blob/main/02.aws-vpc-nopublic-ec2.yaml)です。ご参考まで。
+
+Client-EC2に関しては事前準備として、Client-VPCにはInstance Connectエンドポイントを作成し、インスタンスにSSH接続できるようにしておきます。また、Amazon Linux2023にはFTPクライアントが入っていないので、S3のGatewayエンドポイント経由でdnfインストールできるようにしています。
+ここは本題と異なるので省略しています。詳しくは[こちら](https://repost.aws/ja/knowledge-center/ec2-troubleshoot-yum-errors-al1-al2)の記事をご覧ください。
+（今回はコスト優先でこの構成にしましたが、手間に感じる方はパブリックサブネット+NAT Gatewayの構成で作成してください。）
+
+
+## Transfer for FTPの構築
+
 
 
 
