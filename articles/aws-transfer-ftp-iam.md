@@ -1,27 +1,28 @@
 ---
-title: "AWS Transfer for FTPを完全閉域環境で使う際の注意点"
+title: "AWS Transfer for FTPをマルチアカウントで利用する"
 emoji: "😺"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["AWS","FTP","IAM"]
 published: false
 ---
 # はじめに
-みなさんは、AWS上に閉域環境でシステムを構築したことはありますか？
-ここで言う閉域環境とは、VPC内にパブリックサブネットがない・デフォルトルートが設定されていない状態を想定しています。
-最近、この閉域環境内に`AWS Transfer Family for FTP`を使用して、オンプレミス環境からファイル転送を実現しようとした際に、ちょっとしたハマりごとがあったので、自分自身の備忘として残しておきます。
+みなさんは、`AWS Transfer Family for FTP`を使用したことはありますか？
+私は最近オンプレミス環境上のシステムとAWSに開発中のシステムでFTPの要件があり、作成する機会がありました。また、このAWS上のシステムが元々独立した(オンプレミスと`non ip-reachable`な)環境だったので、`ip-reachable`なアカウントからマルチアカウントで利用できるように構成したので、備忘として残しておきます。
 
 # 先に結論
 まずは先に結論だけ書いておきます。ここで理解できた方は読み飛ばしてください！
 
 :::message
-エンドポイントからSTS向けの通信ができるようにする！
+IAMロールとS3バケットポリシーの双方で設定する！
 :::
 
 1. Transfer FamilyのエンドポイントはFTPサーバーの役割をする
 2. S3・EFSへファイル転送を行うにはIAMの権限が必要
-3. つまりエンドポイント（FTPサーバー）からSTSへの通信ができるようにする必要がある
+3. 通常通りマルチアカウントでS3アクセスするためにバケットポリシーに許可を設定する
 
-これらがどういうことかを順にご説明していきます。
+以降で順にご説明していきます。最終的な構成はこちらです。
+
+![](/images/aws-transfer-ftp-iam/00_architecture.png)
 
 
 # Transfer Familyとは
@@ -44,8 +45,8 @@ https://aws.amazon.com/jp/aws-transfer-family/
 
 
 # 検証
-## 今回の初期構成
-今回は以下の構成を前提に記事を書いていきます。
+## 初期構成
+まずは同一アカウント内で`Transfer for FTP`を利用できるようにしていきます。
 
 ![](/images/aws-transfer-ftp-iam/01_architecture.png)
 
@@ -435,18 +436,123 @@ yum install lftp
 lftpで接続してみます。
 ```bash
 lftp -u user1 vpce-xxxxx.vpce-svc-xxxx.ap-northeast-1.vpce.amazonaws.com
+Password: <SecretsManagerに登録しているパスワード>
+lftp user1@vpce-xxxxx.vpce-svc-xxxx.ap-northeast-1.vpce.amazonaws.com:~>
 ```
 
-対話モードになってログインできていそうです。lsコマンドを実行してみましょう。
+対話モードになってログインできていそうです。
+ファイル転送をしてみます。一度`exit`で対話モードを抜け、ファイルを作成して再度ログインして、`put`コマンドを実行します。
+
 ```bash
-`ls' at 0 [Connecting...]
+touch test.txt
+lftp -u user1 vpce-xxxxx.vpce-svc-xxxx.ap-northeast-1.vpce.amazonaws.com
+Password: <SecretsManagerに登録しているパスワード>
+lftp user1@vpce-xxxxx.vpce-svc-xxxx.ap-northeast-1.vpce.amazonaws.com:~> put test.txt
 ```
-と表示されて、一向に進まないと思います。
-そうです、今の状態ではFTPサーバーとしては正しく機能していません。
 
+プロンプトが返ってきたら、`ls`コマンドでファイル転送できていることを見てみます。
+```bash
+lftp user1@vpce-xxxxx.vpce-svc-xxxx.ap-northeast-1.vpce.amazonaws.com:~> ls
+-rwxr--r--   1 - -            0 Mar 15 00:47 test.txt
+```
+FTPが機能していることが分かりました。
 
+## マルチアカウント化対応
+転送先のアカウントにS3バケットを作成します。この手順は省きますが、バケットARNは保存しておいてください。
 
+### SecretsManagerへのシークレット登録
+先ほど作成したシークレットと同様、転送先アカウント向けのユーザー情報を登録します。
+サーバーIDは同じでユーザー名を変更したシークレット名で、`HomeDirectoryDetails`を指定している場合はバケット名を更新します。
 
+### IAMポリシーへの許可追加
+先ほど作成したIAMポリシーにバケットARNを追記します。ここも手順は省きます。
+ポリシーごと新規に作成してアタッチしても大丈夫です。
+
+### IAMロールIDを取得する
+転送先のバケットポリシーに使用するため、IAMロールIDを取得します。これはマネジメントコンソールからは取得できないため、CLIを使用します。
+CloudShellなどを使用すると楽に取得できます。
+
+```bash
+aws iam get-role --role-name "先ほど作成したIAMロール名"
+```
+:::details IAMロールIDのレスポンス
+```json
+{
+    "Role": {
+        "Path": "/",
+        "RoleName": "<先ほど作成したIAMロール名>",
+        "RoleId": "<IAMロールID>",
+        "Arn": "arn:aws:iam::<account id>:role/<先ほど作成したIAMロール名>",
+        "CreateDate": "2025-02-24T07:50:03+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "transfer.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        },
+        "Description": "Allow AWS Transfer to call AWS services on your behalf.",
+        "MaxSessionDuration": 3600,
+        "RoleLastUsed": {
+            "LastUsedDate": "2025-03-15T00:35:20+00:00",
+            "Region": "ap-northeast-1"
+        }
+    }
+}
+```
+:::
+
+### バケットポリシー追記(転送先アカウント作業)
+転送先のS3の`アクセス許可`タブからバケットポリシーを修正します。以下のポリシー例に必要な情報を追記してください。
+
+:::details バケットポリシー
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "BucketPolicyForFTP",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<転送元アカウントID>:root"
+            },
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:GetObject",
+                "s3:DeleteObjectVersion",
+                "s3:DeleteObject",
+                "s3:GetObjectVersion",
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::転送先バケット名",
+                "arn:aws:s3:::転送先バケット名/*"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "aws:userId": "<IAMロールID>:*"
+                }
+            }
+        }
+    ]
+}
+```
+:::
+
+## EC2からのFTP実行
+先ほど同様対象のユーザー・PWでログインとファイル転送を実行すると、問題なく実行できると思います。
+
+# 最後に
+この機能を使用すると、各アカウントでFTPエンドポイントを作成しなくて良いので、コストの面でもメリットが出せると思います。
+FTPだけでなく、SFTPでももちろんマルチアカウントでの構成ができるので、AWSを利用していて複数アカウントを管理している方は、できるだけ集約できる部分を整理するとコストや管理が簡単になるのでぜひ利用してみてください。
 
 
 
