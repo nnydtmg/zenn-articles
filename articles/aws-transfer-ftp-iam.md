@@ -2,8 +2,8 @@
 title: "AWS Transfer for FTPをマルチアカウントで利用する"
 emoji: "😺"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["AWS","FTP","IAM"]
-published: false
+topics: ["AWS","FTP"]
+published: true
 ---
 # はじめに
 みなさんは、`AWS Transfer Family for FTP`を使用したことはありますか？
