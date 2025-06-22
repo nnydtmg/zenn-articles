@@ -3,7 +3,7 @@ title: "remote-swe-agentsを使って、CDKでApplication Signalsをやってみ
 emoji: "🎉"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","bedrock","cloudwatch"]
-published: false
+published: true
 ---
 
 # はじめに
@@ -203,11 +203,14 @@ Application Signalsでランタイムメトリクスを取得するためには�
 
 古いバージョンでもApplication Signalsへのメトリクス出力はできますが、せっかくならランタイムメトリクスまで取りたいので、ここは事前に確認してください。
 
+# 最後に
+ざっと個人検証のメモ的になりましたが、まだまだ生成AIに関して自分の使い方も甘い部分があったり、Application Signalsに関してもまだまだ深掘りしていきたいと思うので、コメントなどお待ちしています！
 
 ## 追記
 ### テスト実装
 `applicationsignals-adot-on-ecs に対して、snapshotテストとintegテストを実装したい`というメッセージと、`PRが作成されたとき、PRが更新された時にこのスナップショットテストとIntegテストを実行するGithubActionsのCIワークフローを作ってください`というメッセージで、CDKのスナップショットテストとIntegテスト、それをPR作成時にテストとして実行するGithub Actionsワークフローを作成してくれました。
 
 [テスト実装のPR](https://github.com/nnydtmg/applicationsignals-adot-on-ecs/pull/4)
+
 [ワークフロー実装のPR](https://github.com/nnydtmg/applicationsignals-adot-on-ecs/pull/12)
 
