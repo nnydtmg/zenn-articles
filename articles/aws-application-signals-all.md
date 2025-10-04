@@ -2,8 +2,8 @@
 title: "AWS Application SignalsにRUMやCanaryを全部盛りにしてみた"
 emoji: "🙆"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["aws","observability","cloudwatch"]
-published: false
+topics: ["aws","observability","cloudwatch","cdk"]
+published: true
 ---
 
 :::message
