@@ -408,6 +408,8 @@ Application Signalsのクライアントページにも表示されているこ�
 
 やはり、AWS内だけでホストしているアプリケーションに対してAWS内でObserverbilityが実現できるApplication Signalsは強力ですし、導入ハードルも低いのでぜひ検討してほしいサービスだなと感じました。
 
+今回はSLI/SLOの設定やアラームの設定はしていませんが、複雑な設定もなくサービスに適切なSLOを設定することで、無駄なアラームを減らしつつ開発に専念できる状態を作り出すことが可能です。後日その辺りもまとめられたらなと思っています。
+
 
 そして、この記事を書いている間に、[ECS Managed Instanceがリリース](https://aws.amazon.com/jp/blogs/aws/announcing-amazon-ecs-managed-instances-for-containerized-applications/)され、[CDK L2コンストラクトもリリース](https://x.com/365_step_tech/status/1973589355651539103)されたので、引き続きこの辺りを取り込んでいきたいなと思います。
 
