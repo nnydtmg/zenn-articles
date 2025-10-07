@@ -368,7 +368,7 @@ telemetriesの設定内で、httpに`addXRayTraceIdHeader:true`を指定しな�
 
 :::details App.tsx抜粋
 
-``ts
+```ts
     telemetries: [
       "errors",
       "performance",
