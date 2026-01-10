@@ -3,7 +3,7 @@ title: "AWS Network Firewall Proxyを検証してみる（脱Squidなるか？�
 emoji: "📚"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","security","firewall"]
-published: false
+published: true
 ---
 
 ## はじめに
