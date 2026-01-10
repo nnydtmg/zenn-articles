@@ -380,7 +380,7 @@ Server: gunicorn/19.9.0
 
 ## まとめ
 * NAT Gatewayに対してProxyの設定がアタッチできる（VPCエンドポイントが自動作成される）
-    * Regional NAT Gatewayに対してもアタッチ可能
+    * Regional NAT Gatewayに対してはアタッチ不可
     * 複数AZで複数NAT Gatewayを利用している場合はそれぞれに設定をアタッチする必要がある
     * ただし、プレビュー期間中は[アカウント内に1つまで](https://docs.aws.amazon.com/ja_jp/network-firewall/latest/developerguide/limits-of-the-proxy-service.html)なので未検証
 * 明示型プロキシとして動作する
