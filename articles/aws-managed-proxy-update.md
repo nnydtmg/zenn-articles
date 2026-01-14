@@ -403,3 +403,4 @@ GAの際にできる限り良心的な料金で利用できることを願って
 ### Invalid condition at index 0 for rule test-ua in preREQUEST rule phase: Condition key does not support ForAnyValue or ForAllValues
 PreREQUESTに対して、User-Agentでのフィルタリングをしたかったのですが、`Invalid condition at index 0 for rule test-ua in preREQUEST rule phase: Condition key does not support ForAnyValue or ForAllValues`というエラーになり設定できませんでした。ただ、選択肢は全て`ForAnyValue`または、`ForAllValues`なのでここは別途調査が必要です。
 
+
