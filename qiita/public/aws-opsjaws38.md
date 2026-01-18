@@ -1,13 +1,14 @@
 ---
 title: 'Ops-JAWS Meetup #38を開催しました！'
-private: false
 tags:
-  - aws
+  - AWS
   - meetup
-updated_at: '2026-01-18T06:33:58.889Z'
-id: null
+private: false
+updated_at: '2026-01-18T15:34:06+09:00'
+id: b59765d9da5c8a906d40
 organization_url_name: null
 slide: false
+ignorePublish: false
 ---
 
 # はじめに
