@@ -1,9 +1,9 @@
 ---
 title: "Ops-JAWS Meetup #38を開催しました！"
 emoji: "📌"
-type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["aws"]
-published: false
+type: "idea" # tech: 技術記事 / idea: アイデア
+topics: ["aws","meetup"]
+published: true
 ---
 
 # はじめに
