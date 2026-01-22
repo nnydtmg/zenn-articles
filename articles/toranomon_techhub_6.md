@@ -3,7 +3,7 @@ title: "Toranomon TechHub 第6回を開催しました！"
 emoji: "⛳"
 type: "idea" # tech: 技術記事 / idea: アイデア
 topics: ["meetup"]
-published: false
+published: true
 ---
 
 # はじめに
