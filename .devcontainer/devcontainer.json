@@ -4,16 +4,37 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
-  "runArgs": ["--network=host"],
+  "runArgs": [
+    "--network=host",
+    "--env-file=${localWorkspaceFolder}/.env"
+  ],
   "remoteUser": "node",
-  
-  // コンテナ作成時にPRHのルールをnpmディレクトリからコピー（同名はスキップ）
-  // "postCreateCommand": "cp -rn /usr/local/lib/node_modules/textlint-rule-prh/node_modules/prh/prh-rules/*/ ./prh-rules/ && echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf",
-  "postCreateCommand": "echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf",
+
+  // ワークスペースマウントの明示的な設定
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+
+  // .envファイルが存在しない場合でもエラーにならないよう初期化時に作成
+  "initializeCommand": "touch ${localWorkspaceFolder}/.env",
+
+  // ホスト側の環境変数をコンテナに渡す（ローカル環境変数が優先）
+  "containerEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+  },
+
+  // メモリ要件（Claude Code のため最小8GB推奨）
+  "hostRequirements": {
+    "memory": "8gb"
+  },
+
+  // コンテナ作成時のセットアップ
+  "postCreateCommand": "echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf && bash ${containerWorkspaceFolder}/.devcontainer/scripts/fix-claude-permissions.sh && bash ${containerWorkspaceFolder}/.devcontainer/scripts/persist-bash-history.sh && bash ${containerWorkspaceFolder}/.devcontainer/scripts/install-claude-code.sh && bash ${containerWorkspaceFolder}/.devcontainer/scripts/check-claude-code.sh",
 
   // コンテナ起動後にバックグラウンドでプレビューサーバ起動
-  "postStartCommand": "nohup bash -c 'zenn &' > /dev/null",
-  
+  "postStartCommand": "bash ${containerWorkspaceFolder}/.devcontainer/scripts/fix-claude-permissions.sh && nohup bash -c 'npx zenn preview --port 8000' > /dev/null 2>&1 &",
+
+  "waitFor": "postCreateCommand",
+
   // プレビューサーバ起動時にシンプルブラウザを起動する
   "portsAttributes": {
     "8000": {
@@ -21,17 +42,32 @@
       "onAutoForward": "openPreview"
     }
   },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=claude-code-bashhistory,target=/commandhistory,type=volume"
+  ],
 
   "customizations": {
     "vscode": {
       // コンテナ内で使用する Extension を指定
       "extensions": [
         "taichi.vscode-textlint",
-        "adrianwilczynski.terminal-commands"
+        "adrianwilczynski.terminal-commands",
+        "anthropic.claude-code"
       ],
 
       // コンテナ内での追加設定
       "settings": {
+        //---------- Claude Code ----------
+        // GitHub Copilot の無効化（Claude Code と競合しないように）
+        "github.copilot.enable": {
+          "*": false
+        },
+
         //---------- taichi.vscode-textlint ----------
         "textlint": {
           // 設定ファイルパス
@@ -43,7 +79,7 @@
           // 校正対象のファイル言語モード
           "languages": ["markdown", "plaintext"]
         },
-        
+
         //---------- adrianwilczynski.terminal-commands ----------
         "runTerminalCommand.commands": [
           { "name": "新しい記事を作成",
