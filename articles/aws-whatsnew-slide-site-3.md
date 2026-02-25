@@ -494,7 +494,45 @@ binding = "THUMBNAILS_R2"
 bucket_name = "whatsnew-thumbnails"
 ```
 
-<!-- TODO: Honoアプリ本体のコードを追加 -->
+## アプリ構成
+
+ルーティングをファイルに分割し、`index.tsx`でまとめて登録します。
+
+| ルート | ファイル | 役割 |
+|---|---|---|
+| `/` | `routes/index` | トップページ（最新10件） |
+| `/article` | `routes/article` | 記事詳細（スライド表示） |
+| `/archive` | `routes/archive` | 月別アーカイブ |
+| `/search` | `routes/search` | 検索・検索結果 |
+| `/api` | `routes/api` | JSON API |
+
+## index.tsx
+
+```typescript
+import { Hono } from 'hono'
+import type { Bindings } from './lib/types'
+import indexRoute from './routes/index'
+import articleRoute from './routes/article'
+import archiveRoute from './routes/archive'
+import searchRoute from './routes/search'
+import apiRoute from './routes/api'
+import { handleError, handleNotFound } from './routes/errors'
+
+const app = new Hono<{ Bindings: Bindings }>()
+
+app.route('/', indexRoute)
+app.route('/article', articleRoute)
+app.route('/archive', archiveRoute)
+app.route('/search', searchRoute)
+app.route('/api', apiRoute)
+
+app.notFound((c) => handleNotFound(c))
+app.onError((err, c) => handleError(err, c))
+
+export default app
+```
+
+`Bindings`型はKV・R2・環境変数をまとめた型定義です。各ルートは独立したHonoインスタンスとしてモジュール化し、`app.route()`でマウントしています。
 
 
 # 5. デプロイ
