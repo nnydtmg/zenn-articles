@@ -260,9 +260,213 @@ jobs:
 
 # 2. メタデータ生成スクリプト（generate-metadata.mjs）
 
-ワークフローから呼ばれる`.github/scripts/generate-metadata.mjs`が、リポジトリ内の`slide.md`を走査して全KVキーをまとめたJSONを生成します。
+ワークフローの `Generate metadata` ステップから呼ばれる`.github/scripts/generate-metadata.mjs`が、リポジトリ内のディレクトリを走査して全KVキー分のJSONを一括生成します。
 
-<!-- TODO: generate-metadata.mjsのコードを追加 -->
+## 処理の流れ
+
+```
+yyyy/mm/dd/title/
+├── slide.html   ← <h1>タグからタイトルを抽出
+└── summary.md   ← 最初の段落をサマリとして抽出
+```
+
+両ファイルが揃ったディレクトリのみを記事として認識し、月別にグルーピングして出力します。
+
+## 出力フォーマット
+
+引数 `outputFormat` によって出力を切り替えます。ワークフローでは `all` を使用して全KVキーをまとめた1つのJSONを生成します。
+
+| フォーマット | 内容 |
+|---|---|
+| `index` | `metadata:index`のみ（全記事リスト） |
+| `months` | 月一覧の配列のみ |
+| `monthly` | 月別データを順に出力 |
+| `all` | 全KVキーをまとめたオブジェクト（ワークフロー用） |
+
+`all`モードの出力例:
+
+```json
+{
+  "metadata:index": {
+    "articles": [...],
+    "updatedAt": "2026-02-25T10:00:00Z",
+    "totalCount": 123
+  },
+  "metadata:months": ["2026/02", "2026/01", "2025/12"],
+  "metadata:2026/02": {
+    "year": 2026,
+    "month": 2,
+    "articles": [...],
+    "totalPages": 3
+  }
+}
+```
+
+## スクリプト全文
+
+```javascript
+#!/usr/bin/env node
+import fs from 'fs';
+import path from 'path';
+
+/** HTMLファイルの<h1>タグからタイトルを抽出 */
+function extractTitleFromHtml(htmlPath) {
+  try {
+    const content = fs.readFileSync(htmlPath, 'utf-8');
+    const match = content.match(/<h1[^>]*>(.*?)<\/h1>/i);
+    if (match && match[1]) {
+      return match[1]
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+        .trim();
+    }
+  } catch (error) {
+    console.error(`Failed to extract title from ${htmlPath}:`, error.message);
+  }
+  return null;
+}
+
+/** ディレクトリ名からタイトルを生成（フォールバック） */
+function titleFromDirectory(dirname) {
+  return dirname.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+}
+
+/** summary.md の最初の段落をサマリとして抽出（最大240文字） */
+function extractSummaryFromMarkdown(summaryPath, maxLength = 240) {
+  try {
+    const content = fs.readFileSync(summaryPath, 'utf-8');
+    const firstBlock = content
+      .replace(/\r\n/g, '\n')
+      .split(/\n\s*\n/)
+      .map(block => block.trim())
+      .find(block => block.length > 0) || '';
+    const cleaned = firstBlock
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`[^`]*`/g, ' ')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/[#>*_~\-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength)}...` : cleaned || null;
+  } catch (error) {
+    console.error(`Failed to extract summary from ${summaryPath}:`, error.message);
+    return null;
+  }
+}
+
+/** yyyy/mm/dd/title/ 構造をスキャンして記事メタデータを収集 */
+function scanArticles(baseDir = '.') {
+  const articles = [];
+  const thumbnailBaseUrl = process.env.THUMBNAIL_BASE_URL
+    ? process.env.THUMBNAIL_BASE_URL.replace(/\/+$/, '')
+    : null;
+
+  const yearDirs = fs.readdirSync(baseDir)
+    .filter(name => /^\d{4}$/.test(name) && fs.statSync(path.join(baseDir, name)).isDirectory())
+    .sort((a, b) => b.localeCompare(a));
+
+  for (const yearDir of yearDirs) {
+    const yearPath = path.join(baseDir, yearDir);
+    const monthDirs = fs.readdirSync(yearPath)
+      .filter(name => /^\d{2}$/.test(name) && fs.statSync(path.join(yearPath, name)).isDirectory())
+      .sort((a, b) => b.localeCompare(a));
+
+    for (const monthDir of monthDirs) {
+      const monthPath = path.join(yearPath, monthDir);
+      const dayDirs = fs.readdirSync(monthPath)
+        .filter(name => /^\d{2}$/.test(name) && fs.statSync(path.join(monthPath, name)).isDirectory())
+        .sort((a, b) => b.localeCompare(a));
+
+      for (const dayDir of dayDirs) {
+        const dayPath = path.join(monthPath, dayDir);
+        const titleDirs = fs.readdirSync(dayPath)
+          .filter(name => fs.statSync(path.join(dayPath, name)).isDirectory());
+
+        for (const titleDir of titleDirs) {
+          const articlePath = path.join(dayPath, titleDir);
+          const slideHtml = path.join(articlePath, 'slide.html');
+          const summaryMd = path.join(articlePath, 'summary.md');
+
+          // slide.html と summary.md が揃っている場合のみ記事として認識
+          if (fs.existsSync(slideHtml) && fs.existsSync(summaryMd)) {
+            const title = extractTitleFromHtml(slideHtml) || titleFromDirectory(titleDir);
+            const summary = extractSummaryFromMarkdown(summaryMd);
+            const relativePath = path.relative(baseDir, articlePath).replace(/\\/g, '/');
+            articles.push({
+              id: `${yearDir}-${monthDir}-${dayDir}-${titleDir}`,
+              title,
+              date: `${yearDir}-${monthDir}-${dayDir}`,
+              year: parseInt(yearDir, 10),
+              month: parseInt(monthDir, 10),
+              day: parseInt(dayDir, 10),
+              path: relativePath,
+              summary,
+              thumbnailUrl: thumbnailBaseUrl
+                ? `${thumbnailBaseUrl}/${relativePath}/thumbnail.png`
+                : undefined
+            });
+          }
+        }
+      }
+    }
+  }
+  return articles;
+}
+
+function groupByMonth(articles) {
+  const grouped = {};
+  for (const article of articles) {
+    const monthKey = `${article.year}/${String(article.month).padStart(2, '0')}`;
+    if (!grouped[monthKey]) grouped[monthKey] = { year: article.year, month: article.month, articles: [] };
+    grouped[monthKey].articles.push(article);
+  }
+  return grouped;
+}
+
+function main() {
+  const baseDir = process.argv[2] || '.';
+  const outputFormat = process.argv[3] || 'index';
+  const articles = scanArticles(baseDir);
+  articles.sort((a, b) => b.date.localeCompare(a.date));
+  const updatedAt = new Date().toISOString();
+
+  if (outputFormat === 'all') {
+    const monthlyGroups = groupByMonth(articles);
+    const months = Object.keys(monthlyGroups).sort((a, b) => b.localeCompare(a));
+    const output = {
+      'metadata:index': { articles, updatedAt, totalCount: articles.length },
+      'metadata:months': months
+    };
+    for (const [monthKey, data] of Object.entries(monthlyGroups)) {
+      output[`metadata:${monthKey}`] = {
+        year: data.year, month: data.month,
+        articles: data.articles,
+        totalPages: Math.ceil(data.articles.length / 10)
+      };
+    }
+    console.log(JSON.stringify(output, null, 2));
+  } else if (outputFormat === 'months') {
+    const months = Object.keys(groupByMonth(articles)).sort((a, b) => b.localeCompare(a));
+    console.log(JSON.stringify(months, null, 2));
+  } else {
+    console.log(JSON.stringify({ articles, updatedAt, totalCount: articles.length }, null, 2));
+  }
+}
+
+main();
+```
+
+## 設計のポイント
+
+**タイトルの2段階抽出**
+`slide.html`の`<h1>`タグを正規表現で取得し、失敗した場合はディレクトリ名をキャメルケースに変換してフォールバックします。
+
+**サマリの抽出**
+`summary.md`の最初の段落を取得し、コードブロック・Markdownマーカー・リンク記法を除去してプレーンテキスト化します。検索・一覧表示用に最大240文字に制限しています。
+
+**サムネイルURL**
+`THUMBNAIL_BASE_URL`環境変数（R2のパブリックURL）とパスを結合して生成します。環境変数が未設定の場合は`thumbnailUrl`フィールド自体を省略します。
 
 
 # 3. Cloudflare R2: サムネイル画像
