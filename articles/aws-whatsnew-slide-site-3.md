@@ -61,74 +61,215 @@ workers/
 ```
 
 
-# 1. GitHub Actions: Marpスライド→HTML変換
+# 1. GitHub Actions: HTML生成・メタデータ更新
 
-Part2のAgentがコミットした`slide.md`をGitHub Actionsで自動的にHTMLに変換します。
+Part2のAgentがコミットした`slide.md`を定期的にHTMLへ変換し、Cloudflare KV / R2を更新するワークフローです。以下の5ステップで構成されています。
+
+| ステップ | 処理 |
+|---|---|
+| HTML変換 | `slide.md` → `slide.html`（未変換ファイルのみ） |
+| サムネイル生成 | `slide.md` → `thumbnail.png`（新規または更新時のみ） |
+| メタデータ生成 | `generate-metadata.mjs`でKV投入用JSONを生成 |
+| KV更新 | `wrangler kv key put`で全メタデータキーを更新 |
+| R2アップロード | 新規サムネイルのみR2にアップロード |
+
+## ワークフロー全文
 
 ```yaml
-# .github/workflows/marp.yml
-name: Marp to HTML
+name: Generate HTML and Update Metadata
 
 on:
-  push:
-    paths:
-      - '**/*.md'
+  schedule:
+    - cron: '0 * * * *'   # 毎時実行
+  workflow_dispatch:       # 手動実行を許可
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Convert Marp to HTML
-        uses: docker://marpteam/marp-cli:latest
+      - uses: actions/setup-node@v4
         with:
-          entrypoint: marp
-          args: --html --output ${{ env.OUTPUT }} ${{ env.INPUT }}
-        env:
-          INPUT:  ${{ github.event.head_commit.modified[0] }}
-          OUTPUT: ${{ github.event.head_commit.modified[0] }}
+          node-version: '20'
 
-      - name: Commit HTML
+      # Marp/Puppeteerの日本語レンダリングに必要
+      - name: Install Japanese fonts
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add '**/*.html'
-          git commit -m "Convert Marp to HTML" || echo "No changes"
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          fc-cache -fv
+
+      - name: Install Marp CLI
+        run: npm install -g @marp-team/marp-cli
+
+      # slide.html が存在しない slide.md のみ変換
+      - name: Generate slide.html from slide.md
+        run: |
+          converted_count=0
+          skipped_count=0
+          failed_count=0
+
+          mapfile -d '' files < <(find . -type f -name "slide.md" -print0)
+          for file in "${files[@]}"; do
+            dir=$(dirname "$file")
+            html_file="$dir/slide.html"
+            if [ ! -f "$html_file" ]; then
+              echo "  ✓ Converting $file..."
+              if marp --html --allow-local-files --theme ./themes/aws-whatsnew.css "$file" -o "$html_file" < /dev/null; then
+                converted_count=$((converted_count + 1))
+              else
+                echo "  ✗ Failed to convert $file"
+                failed_count=$((failed_count + 1))
+              fi
+            else
+              skipped_count=$((skipped_count + 1))
+            fi
+          done
+
+          echo "=== Conversion Summary ==="
+          echo "Converted: $converted_count / Skipped: $skipped_count / Failed: $failed_count"
+
+      # サムネイルは新規または slide.md 更新時のみ再生成
+      - name: Generate thumbnails from slide.md
+        run: |
+          set +e
+          generated_count=0
+          skipped_count=0
+          newly_generated_list="/tmp/new_thumbnails.txt"
+          : > "$newly_generated_list"
+
+          mapfile -d '' files < <(find . -type f -name "slide.md" -print0)
+          for file in "${files[@]}"; do
+            dir=$(dirname "$file")
+            # summary.md と slide.html の両方が存在する場合のみ処理
+            [ -f "$dir/summary.md" ] && [ -f "$dir/slide.html" ] || continue
+
+            if [ -f "$dir/thumbnail.png" ]; then
+              # slide.md がサムネイルより新しければ再生成
+              slide_time=$(git log -1 --format="%at" -- "$file")
+              thumb_time=$(git log -1 --format="%at" -- "$dir/thumbnail.png")
+              if [ -n "$slide_time" ] && [ -n "$thumb_time" ] && [ "$slide_time" -le "$thumb_time" ]; then
+                skipped_count=$((skipped_count + 1))
+                continue
+              fi
+              rm "$dir/thumbnail.png"
+            fi
+
+            if marp --image png --allow-local-files --theme ./themes/aws-whatsnew.css "$file" -o "$dir/thumbnail.png" < /dev/null; then
+              generated_count=$((generated_count + 1))
+              echo "$dir/thumbnail.png" >> "$newly_generated_list"
+            fi
+          done
+
+          echo "=== Thumbnail Summary ==="
+          echo "Generated: $generated_count / Skipped: $skipped_count"
+
+      # generate-metadata.mjs で全KVキー分のJSONを一括生成
+      - name: Generate metadata
+        env:
+          THUMBNAIL_BASE_URL: ${{ secrets.THUMBNAIL_BASE_URL }}
+        run: |
+          node .github/scripts/generate-metadata.mjs . all > metadata-all.json
+          echo "Generated metadata for $(cat metadata-all.json | jq -r '."metadata:index".totalCount') articles"
+
+      # metadata:index, metadata:months, metadata:{year}-{month} をKVに投入
+      - name: Update Workers KV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install -g wrangler
+
+          for key in "metadata:index" "metadata:months"; do
+            cat metadata-all.json | jq ".\"$key\"" | \
+              wrangler kv key put "$key" \
+                --namespace-id=${{ secrets.KV_NAMESPACE_ID }} \
+                --remote --path=/dev/stdin
+          done
+
+          # 月別キー（metadata:YYYY-MM）を動的に更新
+          cat metadata-all.json | jq -r 'keys[] | select(startswith("metadata:") and . != "metadata:index" and . != "metadata:months")' | \
+          while read key; do
+            echo "Updating $key..."
+            cat metadata-all.json | jq ".\"$key\"" | \
+              wrangler kv key put "$key" \
+                --namespace-id=${{ secrets.KV_NAMESPACE_ID }} \
+                --remote --path=/dev/stdin
+          done
+
+      # 新規サムネイルのみR2にアップロード
+      - name: Upload thumbnails to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          newly_generated_list="/tmp/new_thumbnails.txt"
+          [ -s "$newly_generated_list" ] || { echo "No new thumbnails."; exit 0; }
+
+          while read file; do
+            [ -z "$file" ] && continue
+            key=${file#./}   # 先頭の "./" を除去して R2 キーにする
+            echo "Uploading $file → $key"
+            wrangler r2 object put "$R2_BUCKET/$key" --remote --file "$file"
+          done < "$newly_generated_list"
+
+      # [skip ci] でワークフローの無限ループを防ぐ
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "**/slide.html" metadata-all.json
+          git add "**/thumbnail.png" || true
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "Generate HTML and metadata [skip ci]"
           git push
 ```
 
-<!-- TODO: 実際のワークフローファイルの内容を追加 -->
+## 設計のポイント
+
+**冪等な差分更新**
+- HTML変換: `slide.html`が既に存在する場合はスキップ
+- サムネイル: Gitのコミット時刻を比較し、`slide.md`が新しい場合のみ再生成
+- R2アップロード: `/tmp/new_thumbnails.txt`に記録した新規ファイルのみ対象
+
+**KVのキー構造**
+ワークフローが更新する KV キーは3種類です。
+
+| キー | 内容 |
+|---|---|
+| `metadata:index` | 全スライドの件数・最新日付などの集計情報 |
+| `metadata:months` | 月一覧（ナビゲーション用） |
+| `metadata:YYYY-MM` | 各月のスライド一覧（タイトル・URL・サムネイルURL等） |
+
+**必要なSecretsの設定**
+
+| Secret | 用途 |
+|---|---|
+| `THUMBNAIL_BASE_URL` | R2のパブリックURL（例: `https://pub-xxx.r2.dev`） |
+| `CLOUDFLARE_API_TOKEN` | Wrangler用APIトークン |
+| `CLOUDFLARE_ACCOUNT_ID` | CloudflareアカウントID |
+| `KV_NAMESPACE_ID` | KVネームスペースID |
+| `R2_BUCKET` | R2バケット名 |
 
 
-# 2. Cloudflare KV: メタデータ管理
+# 2. メタデータ生成スクリプト（generate-metadata.mjs）
 
-## KVのデータ構造
+ワークフローから呼ばれる`.github/scripts/generate-metadata.mjs`が、リポジトリ内の`slide.md`を走査して全KVキーをまとめたJSONを生成します。
 
-KVには各スライドのメタデータをJSON形式で保存します。
-
-```
-Key:   "slides:index"               → 全スライドのIDリスト（配列）
-Key:   "slides:{year}/{month}/{day}/{title}"
-Value: {
-  "title": "Amazon Bedrock が Claude 4.5 をサポート",
-  "category": "AI/ML",
-  "published_date": "2026-02-25",
-  "article_url": "https://aws.amazon.com/...",
-  "slide_url": "https://raw.githubusercontent.com/...",
-  "thumbnail_url": "https://pub-xxx.r2.dev/...",
-  "summary": "..."
-}
-```
-
-<!-- TODO: KV操作のコードを追加 -->
+<!-- TODO: generate-metadata.mjsのコードを追加 -->
 
 
 # 3. Cloudflare R2: サムネイル画像
 
-スライドのサムネイル（OGP画像）をR2に保存します。Part2のAgentがコミット後にサムネイルを生成・アップロードするか、Workers側でスライドURLから動的に生成する方法が考えられます。
+R2はパブリックバケットとして設定し、`thumbnail.png`を`{year}/{month}/{day}/{title}/thumbnail.png`というパスで格納します。Workers側はこのURLをKVのメタデータから読み取り、一覧ページのサムネイル表示に使います。
 
-<!-- TODO: R2アップロードのコードを追加 -->
+<!-- TODO: R2バケット設定の詳細を追加 -->
 
 
 # 4. Hono + Cloudflare Workers アプリ
