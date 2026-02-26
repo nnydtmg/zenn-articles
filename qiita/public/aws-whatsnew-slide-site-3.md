@@ -1,14 +1,15 @@
 ---
 title: Cloudflare Workers×Honoでスライドサイトをホスティングする【3部作 Part3】
-private: false
 tags:
   - cloudflare
-  - hono
   - actions
-updated_at: '2026-02-26T08:02:11.965Z'
-id: null
+  - Hono
+private: false
+updated_at: '2026-02-26T17:02:21+09:00'
+id: 723dc08fe752a2c5c1a4
 organization_url_name: null
 slide: false
+ignorePublish: false
 ---
 
 # はじめに
