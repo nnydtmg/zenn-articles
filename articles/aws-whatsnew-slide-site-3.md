@@ -703,6 +703,116 @@ export default archiveRoute
 
 バリデーションは3段階で、数値変換失敗（NaN）→月の範囲（1〜12）→ページ下限（1以上）の順で弾きます。3つのパラメータをまとめてチェックしてから個別の範囲チェックに進む構成です。
 
+## services/metadata.ts（KVアクセス層）
+
+ルートから呼ばれるKV読み取りロジックをまとめたサービス層です。
+
+```typescript
+import type { Article, MonthlyArchive, MetadataIndex, Bindings } from '../lib/types'
+
+/** 全記事メタデータを取得 */
+export async function getAllArticles(kv: KVNamespace): Promise<Article[]> {
+  const indexData = await kv.get<MetadataIndex>('metadata:index', 'json')
+  if (!indexData) {
+    console.warn('⚠️ metadata:index not found in KV, returning empty array')
+    return []
+  }
+  return indexData.articles
+}
+
+/** 月別記事を取得（ページング対応） */
+export async function getMonthlyArticles(
+  kv: KVNamespace,
+  year: number,
+  month: number,
+  page: number = 1,
+  perPage: number = 10
+): Promise<MonthlyArchive> {
+  const monthKey = `metadata:${year}/${month.toString().padStart(2, '0')}`
+  const monthData = await kv.get<MonthlyArchive>(monthKey, 'json')
+
+  const allArticles = monthData
+    ? monthData.articles
+    : (await getAllArticles(kv)).filter(a => a.year === year && a.month === month)
+
+  const totalPages = Math.ceil(allArticles.length / perPage)
+  const startIndex = (page - 1) * perPage
+  return {
+    year: monthData?.year ?? year,
+    month: monthData?.month ?? month,
+    articles: allArticles.slice(startIndex, startIndex + perPage),
+    totalPages,
+  }
+}
+
+/** 利用可能な月一覧を取得 */
+export async function getAvailableMonths(kv: KVNamespace): Promise<string[]> {
+  const months = await kv.get<string[]>('metadata:months', 'json')
+  if (months) return months
+
+  const allArticles = await getAllArticles(kv)
+  const monthSet = new Set<string>()
+  allArticles.forEach(article => {
+    monthSet.add(`${article.year}/${article.month.toString().padStart(2, '0')}`)
+  })
+  return Array.from(monthSet).sort((a, b) => b.localeCompare(a))
+}
+
+/** 直近N件の記事を取得 */
+export async function getRecentArticles(
+  kv: KVNamespace,
+  limit: number = 10
+): Promise<Article[]> {
+  const allArticles = await getAllArticles(kv)
+  return allArticles
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, limit)
+}
+
+/** 検索（タイトル + サマリのAND検索） */
+export async function searchArticles(
+  kv: KVNamespace,
+  query: string,
+  page: number = 1,
+  perPage: number = 20
+): Promise<{ articles: Article[]; total: number; totalPages: number; currentPage: number }> {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (!normalizedQuery) {
+    return { articles: [], total: 0, totalPages: 0, currentPage: 1 }
+  }
+  const terms = normalizedQuery.split(/\s+/).filter(Boolean)
+  const allArticles = await getAllArticles(kv)
+
+  const matched = allArticles
+    .filter(article => {
+      const haystack = `${article.title ?? ''} ${article.summary ?? ''}`.toLowerCase()
+      return terms.every(term => haystack.includes(term))
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const total = matched.length
+  const totalPages = total === 0 ? 0 : Math.ceil(total / perPage)
+  const safePage = Math.min(Math.max(page, 1), totalPages || 1)
+  return {
+    articles: matched.slice((safePage - 1) * perPage, safePage * perPage),
+    total,
+    totalPages,
+    currentPage: safePage,
+  }
+}
+```
+
+### 設計のポイント
+
+**2段階フォールバック**
+`getMonthlyArticles`と`getAvailableMonths`はそれぞれ専用KVキー（`metadata:YYYY/MM`・`metadata:months`）を先に読みに行き、存在しなければ`metadata:index`全件から生成します。KVデータが最新でない状態でも動作するため、初回デプロイ時やKV更新の遅延にも対応できます。
+
+**スペース区切りAND検索**
+`searchArticles`ではクエリをスペースで分割し、全単語が`title + summary`に含まれる場合のみマッチとします（`terms.every`）。「EC2 インスタンス」のように複数ワードで絞り込めます。
+
+**`safePage`によるページクランプ**
+`Math.min(Math.max(page, 1), totalPages || 1)`で、URLに大きすぎるページ番号が渡されても最終ページに丸めます。ルート層のバリデーション（1未満拒否）とサービス層のクランプで2重に範囲を保証しています。
+
 
 # 5. デプロイ
 
