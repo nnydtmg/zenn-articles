@@ -582,6 +582,63 @@ export default indexRoute
 **キャッシュヘッダー**
 `Cache-Control: public, max-age=300`（5分）を付与します。Cloudflare CDNがエッジでキャッシュするため、KV読み取りコストとレイテンシを削減できます。
 
+## routes/search.ts（検索）
+
+`/search?q=keyword&page=N` のクエリパラメータを受け取り、KV上の全記事メタデータをWorkers内でフィルタリングして結果を返します。
+
+```typescript
+import { Hono } from 'hono'
+import type { Bindings } from '../lib/types'
+import { getAvailableMonths, searchArticles } from '../services/metadata'
+import { SearchPage } from '../templates/search'
+
+const searchRoute = new Hono<{ Bindings: Bindings }>()
+
+searchRoute.get('/', async (c) => {
+  const kv = c.env.MARP_KV
+  const gaMeasurementId = c.env.GA_MEASUREMENT_ID
+  if (!kv) {
+    return c.text('KV namespace not configured', 500)
+  }
+  try {
+    const query = c.req.query('q') || ''
+    const pageStr = c.req.query('page') || '1'
+    const page = Number.parseInt(pageStr, 10)
+    if (Number.isNaN(page) || page < 1) {
+      return c.text('Invalid page', 400)
+    }
+    const { articles, total, totalPages, currentPage } = await searchArticles(
+      kv,
+      query,
+      page,
+      20
+    )
+    const months = await getAvailableMonths(kv)
+    c.header('Cache-Control', 'public, max-age=300')
+    return c.html(
+      <SearchPage
+        query={query}
+        articles={articles}
+        months={months}
+        total={total}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        gaMeasurementId={gaMeasurementId}
+      />
+    )
+  } catch (error) {
+    console.error('Failed to load search page:', error)
+    return c.text('Failed to load search page', 500)
+  }
+})
+
+export default searchRoute
+```
+
+検索はシンプルな設計です。`searchArticles`が`metadata:index`から全記事を取得し、`title`・`summary`フィールドに対してキーワードの部分一致でフィルタリングします。記事数が数百件規模であればWorkers内のインメモリ検索で十分なレスポンスタイムに収まります。
+
+ページネーションは1ページ20件固定で、`page`パラメータのバリデーション（NaN・1未満の拒否）をルート層で行い、サービス層には正常値のみを渡すようにしています。
+
 
 # 5. デプロイ
 
