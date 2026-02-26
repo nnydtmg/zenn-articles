@@ -534,6 +534,56 @@ export default app
 
 `Bindings`型はKV・R2・環境変数をまとめた型定義です。各ルートは独立したHonoインスタンスとしてモジュール化し、`app.route()`でマウントしています。
 
+## lib/types.ts（型定義）
+
+アプリ全体で使う型と、Workersのバインディング定義をまとめています。
+
+```typescript
+/** 記事メタデータ */
+export interface Article {
+  id: string          // 形式: yyyy-mm-dd-title
+  title: string
+  date: string        // 形式: yyyy-mm-dd
+  year: number
+  month: number
+  day: number
+  path: string        // リポジトリ内の相対パス
+  thumbnailUrl?: string
+  summary?: string
+  // 後方互換性のため
+  slideUrl?: string
+  summaryUrl?: string
+}
+
+/** 月別アーカイブ */
+export interface MonthlyArchive {
+  year: number
+  month: number
+  articles: Article[]
+  totalPages: number
+}
+
+/** メタデータインデックス（metadata:index の値） */
+export interface MetadataIndex {
+  articles: Article[]
+  updatedAt: string
+}
+
+/** Workers バインディング */
+export interface Bindings {
+  MARP_KV?: KVNamespace
+  GITHUB_REPO: string
+  GITHUB_BRANCH: string
+  CACHE_TTL: number
+  SYNC_SECRET?: string
+  GA_MEASUREMENT_ID?: string
+}
+
+export type Env = Bindings
+```
+
+`Bindings`にKV・GitHub連携用の変数・GA計測IDをまとめることで、`c.env.*`の型補完が全ルートで効きます。`MARP_KV`をオプショナル（`?`）にしているのは、wrangler.tomlのバインディング設定が不完全な環境でも型エラーを出さず、ルート層でnullチェックして適切なエラーを返すためです。
+
 ## routes/index.ts（トップページ）
 
 KVから直近10件の記事と利用可能な月一覧を取得し、JSXテンプレートに渡してHTMLを返します。
