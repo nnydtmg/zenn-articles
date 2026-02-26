@@ -863,6 +863,35 @@ export async function searchArticles(
 **`safePage`によるページクランプ**
 `Math.min(Math.max(page, 1), totalPages || 1)`で、URLに大きすぎるページ番号が渡されても最終ページに丸めます。ルート層のバリデーション（1未満拒否）とサービス層のクランプで2重に範囲を保証しています。
 
+## templates/components/article-card.tsx（カードコンポーネント）
+
+記事一覧グリッドの1枚を担うコンポーネントです。サムネイル有無でフォールバック表示を切り替えています。
+
+```tsx
+export const ArticleCard: FC<ArticleCardProps> = ({ article }) => {
+  // ...
+  return (
+    <a href={`/article/${article.id}`}
+      class="block bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow ...">
+      {/* サムネイル or グラデーションプレースホルダー */}
+      <div class="w-full aspect-video rounded-md mb-4 overflow-hidden bg-gray-100">
+        {article.thumbnailUrl ? (
+          <img src={article.thumbnailUrl} alt={...} class="w-full h-full object-cover" loading="lazy" />
+        ) : (
+          <div class="bg-gradient-to-br from-blue-500 to-blue-700 ...">
+            <svg ...>...</svg>  {/* ドキュメントアイコン */}
+          </div>
+        )}
+      </div>
+      <h3 class="text-lg font-bold line-clamp-2">{article.title}</h3>
+      <p><time datetime={article.date}>{formatDate(article.date)}</time></p>
+    </a>
+  )
+}
+```
+
+HonoのJSXはReactと異なり、HTML属性をそのまま使います（`class`・`stroke-linecap`など）。`aspect-video`で16:9の比率を固定しカードの高さを統一しています。サムネイルが未生成の場合はグラデーション＋SVGアイコンのプレースホルダーを表示し、R2へのアップロードが完了次第自動で画像に切り替わります。
+
 
 # 5. デプロイ
 
