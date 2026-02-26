@@ -1,16 +1,17 @@
 ---
 title: AWS What's NewをAIで要約・スライド化してCloudflareで公開するシステムを作った話
-private: false
 tags:
-  - aws
-  - bedrock
-  - slack
+  - AWS
   - cloudflare
-  - marp
-updated_at: '2026-02-26T16:39:34+09:00'
+  - Slack
+  - Marp
+  - bedrock
+private: false
+updated_at: '2026-02-26T17:03:27+09:00'
 id: bda50315d56712693167
 organization_url_name: null
 slide: false
+ignorePublish: false
 ---
 
 # はじめに
