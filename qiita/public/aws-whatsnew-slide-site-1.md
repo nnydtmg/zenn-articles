@@ -1,15 +1,16 @@
 ---
 title: AWS What's NewをBedrockで要約してSlackに投稿する【3部作 Part1】
-private: false
 tags:
-  - aws
-  - bedrock
+  - AWS
   - lambda
-  - slack
-updated_at: '2026-02-26T07:59:51.368Z'
-id: null
+  - Slack
+  - bedrock
+private: false
+updated_at: '2026-02-26T16:59:59+09:00'
+id: e9af02d099f47225bfde
 organization_url_name: null
 slide: false
+ignorePublish: false
 ---
 
 # はじめに
