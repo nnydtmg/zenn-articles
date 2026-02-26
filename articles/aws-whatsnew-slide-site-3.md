@@ -639,6 +639,70 @@ export default searchRoute
 
 ページネーションは1ページ20件固定で、`page`パラメータのバリデーション（NaN・1未満の拒否）をルート層で行い、サービス層には正常値のみを渡すようにしています。
 
+## routes/archive.ts（月別アーカイブ）
+
+`/archive/:year/:month` のパスパラメータで月を指定し、その月の記事一覧をページネーション付きで返します。
+
+```typescript
+import { Hono } from 'hono'
+import type { Bindings } from '../lib/types'
+import { getMonthlyArticles, getAvailableMonths } from '../services/metadata'
+import { ArchivePage } from '../templates/archive'
+
+const archiveRoute = new Hono<{ Bindings: Bindings }>()
+
+archiveRoute.get('/:year/:month', async (c) => {
+  const kv = c.env.MARP_KV
+  const gaMeasurementId = c.env.GA_MEASUREMENT_ID
+  if (!kv) {
+    return c.text('KV namespace not configured', 500)
+  }
+  try {
+    const yearStr = c.req.param('year')
+    const monthStr = c.req.param('month')
+    const pageStr = c.req.query('page') || '1'
+    const year = parseInt(yearStr, 10)
+    const month = parseInt(monthStr, 10)
+    const page = parseInt(pageStr, 10)
+
+    if (isNaN(year) || isNaN(month) || isNaN(page)) {
+      return c.text('Invalid parameters', 400)
+    }
+    if (month < 1 || month > 12) {
+      return c.text('Invalid month', 400)
+    }
+    if (page < 1) {
+      return c.text('Invalid page', 400)
+    }
+
+    const monthlyArchive = await getMonthlyArticles(kv, year, month, page)
+    const months = await getAvailableMonths(kv)
+
+    c.header('Cache-Control', 'public, max-age=300')
+    return c.html(
+      <ArchivePage
+        year={year}
+        month={month}
+        articles={monthlyArchive.articles}
+        months={months}
+        currentPage={page}
+        totalPages={monthlyArchive.totalPages}
+        gaMeasurementId={gaMeasurementId}
+      />
+    )
+  } catch (error) {
+    console.error('Failed to load archive page:', error)
+    return c.text('Failed to load archive page', 500)
+  }
+})
+
+export default archiveRoute
+```
+
+`getMonthlyArticles`は`metadata:2026/02`のように月別KVキーを直接読み取ります。`metadata:index`（全件）を使わず月別キーに分割しているのは、1リクエストあたりのKV読み取りサイズを抑えるためです。
+
+バリデーションは3段階で、数値変換失敗（NaN）→月の範囲（1〜12）→ページ下限（1以上）の順で弾きます。3つのパラメータをまとめてチェックしてから個別の範囲チェックに進む構成です。
+
 
 # 5. デプロイ
 
