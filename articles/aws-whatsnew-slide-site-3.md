@@ -982,6 +982,33 @@ npx wrangler deploy
 <!-- TODO: デプロイ手順の詳細を追加 -->
 
 
-# まとめ
+# おわりに
 
-<!-- TODO: まとめを追加 -->
+Part3ではGitHubにコミットされたMarpスライドをCloudflareのエッジで配信するまでを構築しました。このパートの設計判断と、3部作全体を振り返ります。
+
+**CI（書き込み）とWorkers（読み取り）の完全分離**
+このシステム最大の特徴は、データの更新経路とサービング経路を完全に切り離した点です。WorkersはKVとR2を読むだけで一切書き込まず、副作用がありません。GitHub ActionsがCIとして全データを管理し、Workersはステートレスなレンダリング層に徹することで、スケールと障害の切り分けが容易になっています。
+
+**KVキー設計で読み取りサイズを分散**
+`metadata:index`（全件）・`metadata:months`（月一覧）・`metadata:YYYY/MM`（月別）の3種類に分割することで、1リクエストが読み取るデータ量を最小化しています。全件を毎回読まずに済むため、月別アーカイブページの表示コストがスライド数の増加に比例しません。
+
+**iframeでスライドを配信し、Workersにファイルを持たない**
+`slide.html`はMarpがスタンドアローンHTMLとして生成するため、GitHubのraw URLをiframeで参照するだけでスライドが動作します。WorkersはURLを組み立てて返すだけで、ファイルの取得・変換・保持を一切行いません。
+
+**Workers内インメモリ検索で外部サービス不要**
+`metadata:index`の全記事をメモリ上でフィルタリングする方式は、数百件規模では十分なレスポンスタイムに収まります。Elasticsearch等の検索サービスを追加することなく、AND検索とページネーションを実装できています。
+
+**実質ゼロコスト運用**
+GitHub Actions（publicリポジトリ無制限）・Cloudflare Workers（10万req/日無料）・KV（読み取り10万回/日無料）・R2（10GB無料）の組み合わせにより、ドメイン代以外のコストはほぼ発生しません。
+
+---
+
+3部作を通じて、AWS What's NewをAIで要約・スライド化し、Cloudflareで配信するシステムを構築しました。
+
+| Part | 担当範囲 | 中心技術 |
+|---|---|---|
+| Part1 | RSS取得・Bedrock要約・Slack投稿 | Lambda / Bedrock / Slack Bolt |
+| Part2 | スライド生成・GitHubコミット | Strands Agents / AgentCore / Tavily |
+| Part3 | HTML変換・メタデータ管理・Web配信 | GitHub Actions / Cloudflare Workers / Hono |
+
+各パートが疎結合に連携しており、それぞれ独立して差し替えや拡張が可能な構成になっています。

@@ -641,14 +641,23 @@ Strands Agentsでは、docstringがそのままLLMへのツール説明として
 `stream_async`でストリーミング実行することで、長時間の処理中もAgentCoreとの接続を維持できます。`asyncio.wait_for`でタイムアウトを設けており、上限を超えた場合はSlackにエラー通知します。エラーハンドリングの多くはシステムプロンプトでAgentに委譲しているため、ここではタイムアウトとAgent起動失敗のみをハンドリングしています。
 
 
-# まとめ
+# おわりに
 
-Part2では以下を実装しました。
+Part2ではStrands AgentsとAgentCoreを組み合わせて、情報収集からスライド生成・GitHubコミットまでを1つのAgentで完結させました。このパートで特に重要だった設計判断を整理します。
 
-- **`BedrockAgentCoreApp` + `@app.entrypoint`**: AgentCoreへのデプロイパターン
-- **Kimi K2**: 長文・Markdown生成に適したモデルをBedrock経由で利用
-- **Strands Agentsによるツール定義**: `@tool`デコレータでTavily/GitHub/Slackをシンプルに実装
-- **Tavilyの3ツール使い分け**: `crawl`/`search`/`extract`でコンテンツ性質に応じた情報収集
-- **`commit_files_to_github`**: `slide.md`と`summary.md`を1コミットで保存、upsertとコミットガードで安全に運用
+**`@tool`デコレータでツール定義を最小化**
+Strands Agentsのツール定義はdocstringがそのままLLMへの説明になります。関数さえ書けばツールになる設計のおかげで、Tavily・GitHub・Slackの連携がボイラープレートなしに実装できました。複雑な入力フォーマットはdocstringにJSONサンプルを添えることでAgentの誤用を防げます。
 
-次のPart3では、GitHubリポジトリにコミットされたMarpスライドをCloudflare PagesとWorkers経由で公開する部分を解説します。
+**Kimi K2を選んだ理由**
+スライド生成は出力が長く、Markdownの構造を正確に保つ必要があります。Kimi K2はこの用途でのコスト効率と出力品質のバランスが優れており、Bedrock経由でモデルIDを差し替えるだけで利用できます。
+
+**Tavilyを3ツールに分ける意義**
+`crawl`（ページ全文）・`search`（一般検索）・`extract`（特定URL構造化）を別ツールとして持たせることで、コンテンツの性質に応じた情報収集をAgentが自律的に選択できます。1つの汎用ツールにまとめると判断ロジックをAgentに委ねすぎてしまい、ツール呼び出しの精度が下がります。
+
+**コミットガードでCIの無限ループを防ぐ**
+GitHubへのコミット前に「既存ファイルと内容が同一か」を確認し、差分がない場合はコミットをスキップします。GitHub ActionsがコミットをトリガーにしてAgentを再呼び出す無限ループを防ぐための重要な安全弁です。
+
+**`slide.md` + `summary.md` の2ファイル構成**
+スライド本体と検索用サマリを分離して保存しています。Part3のメタデータ生成スクリプトが`summary.md`の最初の段落を読み取り、KVの検索インデックスとして活用します。
+
+次のPart3では、GitHubリポジトリにコミットされたMarpスライドをCloudflare Workers経由で公開する部分を解説します。
