@@ -534,6 +534,54 @@ export default app
 
 `Bindings`型はKV・R2・環境変数をまとめた型定義です。各ルートは独立したHonoインスタンスとしてモジュール化し、`app.route()`でマウントしています。
 
+## routes/index.ts（トップページ）
+
+KVから直近10件の記事と利用可能な月一覧を取得し、JSXテンプレートに渡してHTMLを返します。
+
+```typescript
+import { Hono } from 'hono'
+import type { Bindings } from '../lib/types'
+import { getRecentArticles, getAvailableMonths } from '../services/metadata'
+import { IndexPage } from '../templates/index'
+
+const indexRoute = new Hono<{ Bindings: Bindings }>()
+
+indexRoute.get('/', async (c) => {
+  const kv = c.env.MARP_KV
+  const gaMeasurementId = c.env.GA_MEASUREMENT_ID
+  if (!kv) {
+    return c.text('KV namespace not configured', 500)
+  }
+  try {
+    const articles = await getRecentArticles(kv, 10)
+    const months = await getAvailableMonths(kv)
+    c.header('Cache-Control', 'public, max-age=300')
+    return c.html(
+      <IndexPage articles={articles} months={months} gaMeasurementId={gaMeasurementId} />
+    )
+  } catch (error) {
+    console.error('❌ Failed to load index page:', error)
+    return c.text(
+      `Failed to load index page: ${error instanceof Error ? error.message : String(error)}`,
+      500
+    )
+  }
+})
+
+export default indexRoute
+```
+
+ポイントは3つです。
+
+**KVの取得**
+`c.env.MARP_KV`からKVバインディングを取得します。未設定の場合は早期リターンで500を返し、後続処理でのnullアクセスを防いでいます。
+
+**2つのKV読み取り**
+`getRecentArticles`は`metadata:index`から記事リストの先頭10件を、`getAvailableMonths`は`metadata:months`から月一覧を取得します。どちらも`services/metadata`にまとめた薄いラッパーです。
+
+**キャッシュヘッダー**
+`Cache-Control: public, max-age=300`（5分）を付与します。Cloudflare CDNがエッジでキャッシュするため、KV読み取りコストとレイテンシを削減できます。
+
 
 # 5. デプロイ
 
