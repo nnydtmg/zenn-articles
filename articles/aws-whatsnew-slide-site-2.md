@@ -1,5 +1,5 @@
 ---
-title: "AgentCore×Strands AgentでMarpスライドを自動生成する【3部作 Part2】"
+title: "AgentCore×Strands AgentsでMarpスライドを自動生成する【3部作 Part2】"
 emoji: "🤖"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws", "bedrock", "agentcore", "strandsagents", "tavily"]
@@ -326,7 +326,7 @@ def generate_marp_from_thread(
     slides = ["---", "marp: true", "theme: default", "paginate: true", "---", ""]
 
     # タイトルスライド
-    slides += [f"# {title}", "", f"**{category}** | {published_date}", "", "---", ""]
+    slides += [f"# {title}", "", published_date, "", "---", ""]
 
     # 各セクション
     for section in SLIDE_SECTIONS:

@@ -14,7 +14,7 @@ published: false
 
 <!-- TODO: サマリ記事のURLを追加 -->
 
-Part1ではAWS What's NewをBedrockで要約してSlackに投稿するところを、Part2ではAgentCore上のStrands AgentがMarpスライドを生成してGitHubにコミットするところを解説しました。
+Part1ではAWS What's NewをBedrockで要約してSlackに投稿するところを、Part2ではAgentCore上のStrands AgentsがMarpスライドを生成してGitHubにコミットするところを解説しました。
 
 このPart3では、**GitHubにコミットされたMarpスライドをCloudflare Workers / KV / R2を使ってWebサイトとして配信するまで**を解説します。
 
@@ -276,7 +276,7 @@ jobs:
 |---|---|
 | `metadata:index` | 全スライドの件数・最新日付などの集計情報 |
 | `metadata:months` | 月一覧（ナビゲーション用） |
-| `metadata:YYYY-MM` | 各月のスライド一覧（タイトル・URL・サムネイルURL等） |
+| `metadata:YYYY/MM` | 各月のスライド一覧（タイトル・URL・サムネイルURL等） |
 
 **`wrangler kv key put` によるKV書き込み**
 
@@ -533,7 +533,7 @@ main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
 [[kv_namespaces]]
-binding = "SLIDES_KV"
+binding = "MARP_KV"
 id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[r2_buckets]]
@@ -988,7 +988,7 @@ return c.html(<ArticlePage article={article} slideUrl={slideUrl} />)
 <iframe src={slideUrl} class="w-full h-full" />
 ```
 
-Marpが生成した`slide.html`はスタンドアローンのHTMLファイル（CSS・JS込み）なので、iframeで読み込むだけでスライドがそのまま動作します。GitHub Raw URLはCORSヘッダーが付いていないためiframeで問題なく表示できます。
+Marpが生成した`slide.html`はスタンドアローンのHTMLファイル（CSS・JS込み）なので、iframeで読み込むだけでスライドがそのまま動作します。iframeはfetch/XHRと異なりCORSの制限を受けないため、GitHub Raw URLをそのまま参照して表示できます。
 
 
 # 5. デプロイ

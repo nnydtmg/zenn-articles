@@ -31,7 +31,7 @@ RSS取得・Bedrock要約・Slack通知の基本的な構成は、AWS Samplesと
         ↓ (ボタンクリック)
 [Slack Bolt: インタラクションハンドラ]
         ↓
-[Bedrock Agent呼び出し] ← Part2へ続く
+[Bedrock AgentCore呼び出し] ← Part2へ続く
 ```
 
 
@@ -232,11 +232,13 @@ def handle_create_slide(ack, body, say):
     ack()
     url = body["actions"][0]["value"]
     title = body["message"]["blocks"][0]["text"]["text"]
+    channel = body["channel"]["id"]
+    thread_ts = body["message"]["ts"]
 
     say(f"スライドを生成中です... :hourglass_flowing_sand:\nタイトル: {title}")
 
     # Bedrock Agentを呼び出す（Part2で詳解）
-    invoke_agent_runtime(title=title, url=url)
+    invoke_agent_runtime(title=title, url=url, channel=channel, thread_ts=thread_ts)
 
 def lambda_handler(event, context):
     handler = SlackRequestHandler(app=app)
@@ -254,9 +256,9 @@ import boto3
 
 bedrock_agentcore = boto3.client('bedrock-agentcore', region_name=AWS_REGION)
 
-def invoke_agent_runtime(title: str, url: str):
+def invoke_agent_runtime(title: str, url: str, channel: str, thread_ts: str):
     payload_dict = {
-            'articleUrl': article_url,
+            'articleUrl': url,
             'channel': channel,
             'thread_ts': thread_ts
         }
@@ -293,6 +295,7 @@ Botに以下のスコープを付与します。
 |---|---|
 | `chat:write` | メッセージ投稿 |
 | `chat:write.public` | パブリックチャンネルへの投稿 |
+| `channels:history` | パブリックチャンネルのスレッド取得（Part2のAgentが使用） |
 
 
 # ポイントと注意点
