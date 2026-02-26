@@ -3,7 +3,7 @@ title: "Cloudflare Workers×Honoでスライドサイトをホスティングす
 emoji: "🌐"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cloudflare", "hono", "actions"]
-published: false
+published: true
 ---
 
 # はじめに
