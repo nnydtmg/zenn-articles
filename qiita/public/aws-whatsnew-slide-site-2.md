@@ -1,16 +1,17 @@
 ---
 title: AgentCore×Strands AgentsでMarpスライドを自動生成する【3部作 Part2】
-private: false
 tags:
-  - aws
+  - AWS
   - bedrock
-  - agentcore
-  - strandsagents
-  - tavily
-updated_at: '2026-02-26T08:01:09.603Z'
-id: null
+  - Tavily
+  - StrandsAgents
+  - AgentCore
+private: false
+updated_at: '2026-02-26T17:01:18+09:00'
+id: e2e6328fc00aa2661850
 organization_url_name: null
 slide: false
+ignorePublish: false
 ---
 
 # はじめに
