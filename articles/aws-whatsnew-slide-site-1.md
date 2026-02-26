@@ -3,7 +3,7 @@ title: "AWS What's NewをBedrockで要約してSlackに投稿する【3部作 Pa
 emoji: "📰"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws", "bedrock", "lambda", "slack"]
-published: false
+published: true
 ---
 
 # はじめに
