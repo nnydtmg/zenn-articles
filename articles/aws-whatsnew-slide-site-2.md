@@ -3,7 +3,7 @@ title: "AgentCore×Strands AgentsでMarpスライドを自動生成する【3部
 emoji: "🤖"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws", "bedrock", "agentcore", "strandsagents", "tavily"]
-published: false
+published: true
 ---
 
 # はじめに
