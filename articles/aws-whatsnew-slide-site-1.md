@@ -12,7 +12,7 @@ published: false
 
 システム全体の概要は以下のサマリ記事をご覧ください。
 
-<!-- TODO: サマリ記事のURLを追加 -->
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site
 
 このPart1では、**AWS What's NewのRSSフィードをLambdaで定期取得し、Amazon Bedrockで要約してSlackに投稿するまで**を解説します。また、Slackのボタンインタラクションを受け取ってBedrock AgentCoreを呼び出す部分も含みます。
 

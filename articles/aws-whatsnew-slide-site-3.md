@@ -12,7 +12,7 @@ published: false
 
 システム全体の概要は以下のサマリ記事をご覧ください。
 
-<!-- TODO: サマリ記事のURLを追加 -->
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site
 
 Part1ではAWS What's NewをBedrockで要約してSlackに投稿するところを、Part2ではAgentCore上のStrands AgentsがMarpスライドを生成してGitHubにコミットするところを解説しました。
 
