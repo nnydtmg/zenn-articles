@@ -61,6 +61,36 @@ workers/
 ```
 
 
+# アーキテクチャの設計思想
+
+## 「書き込みはCI、読み取りはWorkers」の完全分離
+
+このシステムの最大の特徴は、**データの更新経路とサービング経路を完全に分離**していることです。
+
+```
+[GitHub Actions]          [Cloudflare Workers]
+     ↓ 書き込み専用              ↑ 読み取り専用
+  KV: metadata:*          KV: kv.get(...)
+  R2: thumbnail.png       R2: （URLを返すだけ）
+  Git: slide.html         Git Raw: iframeで参照
+```
+
+WorkersはKVとR2を読み取るだけで、一切書き込みません。副作用がないため、Workers側のコードはステートレスに保たれています。スケールアウトや再デプロイ時も整合性を気にする必要がなく、障害の切り分けも「CIが壊れているか、Workersが壊れているか」の二択に絞られます。
+
+## コスト構造
+
+このシステムは主要コンポーネントをすべて無料枠に収めています。
+
+| サービス | 無料枠 | 本システムの利用量 |
+|---|---|---|
+| GitHub Actions | 2,000分/月（publicリポジトリは無制限） | 毎時1回 × 数分 |
+| Cloudflare Workers | 10万リクエスト/日 | PV依存 |
+| Cloudflare KV | 読み取り10万回/日, 書き込み1,000回/日 | 書き込みはCIのみ |
+| Cloudflare R2 | 10GB保存, 100万クラス-A ops/月 | サムネイル数百枚 |
+
+唯一の費用はドメイン代（任意）のみです。新しいAWS What's Newが来るたびに自動でスライドが公開される仕組みを、実質ゼロコストで維持できます。
+
+
 # 1. GitHub Actions: HTML生成・メタデータ更新
 
 Part2のAgentがコミットした`slide.md`を定期的にHTMLへ変換し、Cloudflare KV / R2を更新するワークフローです。以下の5ステップで構成されています。
@@ -246,6 +276,19 @@ jobs:
 | `metadata:index` | 全スライドの件数・最新日付などの集計情報 |
 | `metadata:months` | 月一覧（ナビゲーション用） |
 | `metadata:YYYY-MM` | 各月のスライド一覧（タイトル・URL・サムネイルURL等） |
+
+**`wrangler kv key put` によるKV書き込み**
+
+`Update Workers KV`ステップの核心は、JSONをstdinから流し込む一行です。
+
+```bash
+cat metadata-all.json | jq '."metadata:index"' | \
+  wrangler kv key put "metadata:index" \
+    --namespace-id=${{ secrets.KV_NAMESPACE_ID }} \
+    --remote --path=/dev/stdin
+```
+
+`generate-metadata.mjs`が全キーをまとめた1つのJSONを出力するため、`jq`でキーごとに切り出してWranglerに渡します。`--path=/dev/stdin`でファイルを介さずパイプで直接投入できます。月別キー（`metadata:YYYY/MM`）は`jq`で動的にキー名を列挙して`while read`でループします。
 
 **必要なSecretsの設定**
 
@@ -891,6 +934,36 @@ export const ArticleCard: FC<ArticleCardProps> = ({ article }) => {
 ```
 
 HonoのJSXはReactと異なり、HTML属性をそのまま使います（`class`・`stroke-linecap`など）。`aspect-video`で16:9の比率を固定しカードの高さを統一しています。サムネイルが未生成の場合はグラデーション＋SVGアイコンのプレースホルダーを表示し、R2へのアップロードが完了次第自動で画像に切り替わります。
+
+## スライド配信フロー（Marp HTML + iframe）
+
+記事詳細ページ（`/article/:id`）のスライド表示は、WorkersがHTMLを生成するのではなく、**GitHubにコミット済みの`slide.html`をiframeで参照する**設計です。
+
+```
+[ブラウザ]
+  │  GET /article/2026-02-25-amazon-ec2-...
+  ▼
+[Cloudflare Workers]
+  │  KVから article.path を取得
+  │  GitHub Raw URL を組み立て
+  │    → https://raw.githubusercontent.com/{repo}/{branch}/{path}/slide.html
+  ▼
+[レスポンスHTML]
+  <iframe src="https://raw.githubusercontent.com/..." />
+```
+
+Workers側では`article.path`（例: `2026/02/25/amazon-ec2-...`）をKVから読み取り、GitHubのraw URLを構築してiframeの`src`に埋め込むだけです。`slide.html`の実体はGitHubが配信するため、**Workersは一切ファイルを保持しません**。
+
+```typescript
+// routes/article.ts（抜粋）
+const slideUrl = `https://raw.githubusercontent.com/${env.GITHUB_REPO}/${env.GITHUB_BRANCH}/${article.path}/slide.html`
+return c.html(<ArticlePage article={article} slideUrl={slideUrl} />)
+
+// テンプレート側
+<iframe src={slideUrl} class="w-full h-full" />
+```
+
+Marpが生成した`slide.html`はスタンドアローンのHTMLファイル（CSS・JS込み）なので、iframeで読み込むだけでスライドがそのまま動作します。GitHub Raw URLはCORSヘッダーが付いていないためiframeで問題なく表示できます。
 
 
 # 5. デプロイ
