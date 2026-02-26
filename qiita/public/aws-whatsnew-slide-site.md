@@ -1,17 +1,16 @@
 ---
 title: AWS What's NewをAIで要約・スライド化してCloudflareで公開するシステムを作った話
-tags:
-  - AWS
-  - cloudflare
-  - Slack
-  - Marp
-  - bedrock
 private: false
+tags:
+  - aws
+  - bedrock
+  - slack
+  - cloudflare
+  - marp
 updated_at: '2026-02-26T16:39:34+09:00'
 id: bda50315d56712693167
 organization_url_name: null
 slide: false
-ignorePublish: false
 ---
 
 # はじめに
@@ -143,3 +142,15 @@ https://whatsnew-marp.nnydtmg.com/
 また、Cloudflare Workers / KV / R2の組み合わせは、サーバーレスでありながら柔軟な構成が取れるため、スライドのホスティング基盤として非常に相性が良かったです。コスト面でも個人・チームの利用規模では十分無料枠内に収まります。
 
 各パートで詳しく解説していきますので、興味のある部分からご覧ください！
+
+### Part1
+
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site-1
+
+### Part2
+
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site-2
+
+### part3
+
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site-3
