@@ -135,3 +135,15 @@ https://whatsnew-marp.nnydtmg.com/
 また、Cloudflare Workers / KV / R2の組み合わせは、サーバーレスでありながら柔軟な構成が取れるため、スライドのホスティング基盤として非常に相性が良かったです。コスト面でも個人・チームの利用規模では十分無料枠内に収まります。
 
 各パートで詳しく解説していきますので、興味のある部分からご覧ください！
+
+### Part1
+
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site-1
+
+### Part2
+
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site-2
+
+### part3
+
+https://zenn.dev/nnydtmg/articles/aws-whatsnew-slide-site-3
