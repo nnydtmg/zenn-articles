@@ -37,7 +37,7 @@
                 <mxCell id="eb2" value="SigV4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;" parent="1" source="colb" target="cw" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="ec2" value="SigV4 / bearer token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;" parent="1" source="colc" target="cw" edge="1">
+                <mxCell id="ec2" value="traces は SigV4 のみ&#10;logs・metrics は bearer token も可" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;" parent="1" source="colc" target="cw" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>

@@ -47,7 +47,7 @@ flowchart LR
     SDK --> COLC["経路C<br/>カスタム Collector"]
 
     COLB -->|"SigV4"| EP
-    COLC -->|"SigV4 / bearer token"| EP
+    COLC -->|"traces は SigV4 のみ<br/>logs・metrics は bearer token も可"| EP
 
     subgraph EP["Amazon CloudWatch OTLP エンドポイント (SigV4)"]
         direction TB
