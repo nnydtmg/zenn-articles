@@ -57,7 +57,9 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図ソースは [`/images/aws-otel-2026/01_decision_map.drawio`](/images/aws-otel-2026/01_decision_map.drawio)（draw.io で編集・PNG/SVG 出力可能）に置いています。
+> AWS アイコン付きの構成図（SVG。draw.io で再編集も可能）はこちら。
+
+![図1：意思決定の全体地図](/images/aws-otel-2026/01_decision_map.drawio.svg)
 
 ### 構成ごとの機能差（公式比較表より）
 
@@ -185,7 +187,9 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図ソースは [`/images/aws-otel-2026/02_route_a.drawio`](/images/aws-otel-2026/02_route_a.drawio) に置いています。
+> AWS アイコン付きの構成図（SVG。draw.io で再編集も可能）はこちら。
+
+![図2：経路Aの最小構成](/images/aws-otel-2026/02_route_a.drawio.svg)
 
 **コードサンプル②（経路A 環境変数フルセット・Java）**：トレース＋ログを us-east-1 へ直接送る起動例。
 
@@ -249,7 +253,9 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図ソースは [`/images/aws-otel-2026/03_route_b.drawio`](/images/aws-otel-2026/03_route_b.drawio) に置いています。
+> AWS アイコン付きの構成図（SVG。draw.io で再編集も可能）はこちら。
+
+![図3：経路Bの集約・加工構成](/images/aws-otel-2026/03_route_b.drawio.svg)
 
 **コードサンプル③（Collector YAML、logs + traces を us-east-1 へ）**：
 
