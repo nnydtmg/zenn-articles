@@ -36,9 +36,28 @@ AWS で OTel を導入する構成は、突き詰めると **「Collector を挟
 
 一番大事な事実を先に押さえます。**この3経路は、最終的にどれも SigV4 認証で同じ CloudWatch OTLP エンドポイントにデータを届けます。計装コード自体は経路に依存しません。** だから「経路を間違えたら計装をやり直し」という心配は要りません。計装は先に進めてよく、収集・転送の部分だけを後から差し替えられます。これがこの記事全体を貫く安心材料です。
 
-:::message
-**図1（意思決定の全体地図）**: 3経路がそれぞれ SDK から出発し、A は直接、B/C は Collector を経由して、同じ3つの OTLP エンドポイント（xray / logs / monitoring）に SigV4 で収束する図。
-:::
+**図1（意思決定の全体地図）**: 3経路がそれぞれ SDK から出発し、A は直接、B/C は Collector を経由して、同じ3つの OTLP エンドポイント（xray / logs / monitoring）に SigV4 で収束します。
+
+```mermaid
+flowchart LR
+    SDK["アプリ + OTel SDK<br/>(計装は経路非依存)"]
+
+    SDK -->|"経路A：直接送信 (SigV4)"| EP
+    SDK --> COLB["経路B<br/>Collector<br/>(CloudWatch Agent /<br/>ADOT / 標準)"]
+    SDK --> COLC["経路C<br/>カスタム Collector"]
+
+    COLB -->|"SigV4"| EP
+    COLC -->|"SigV4 / bearer token"| EP
+
+    subgraph EP["Amazon CloudWatch OTLP エンドポイント (SigV4)"]
+        direction TB
+        XRAY["xray<br/>/v1/traces"]
+        LOGS["logs<br/>/v1/logs"]
+        MON["monitoring<br/>/v1/metrics（プレビュー）"]
+    end
+```
+
+> AWS アイコン付きの構成図ソースは [`/images/aws-otel-2026/01_decision_map.drawio`](/images/aws-otel-2026/01_decision_map.drawio)（draw.io で編集・PNG/SVG 出力可能）に置いています。
 
 ### 構成ごとの機能差（公式比較表より）
 
@@ -148,9 +167,25 @@ java -jar my-app.jar
 - IAM は、トレースなら `AWSXrayWriteOnlyPolicy`、ログなら `logs:PutLogEvents` / `logs:DescribeLogGroups` / `logs:DescribeLogStreams`。認証情報は ADOT SDK が AWS SDK 経由で自動探索。
 - 最低バージョン（Java）：ADOT Java エージェント 2.11.2 以降。
 
-:::message
-**図2（経路Aの最小構成）**: アプリ（ADOT Java エージェント同梱）が、3本のエンドポイントへ直接 SigV4 で送る図。間に Collector は無い。
-:::
+**図2（経路Aの最小構成）**: アプリ（ADOT Java エージェント同梱）が、3本のエンドポイントへ直接 SigV4 で送ります。間に Collector はありません。
+
+```mermaid
+flowchart LR
+    APP["アプリ<br/>(ADOT Java エージェント同梱)<br/>※ Collector なし"]
+
+    APP -->|"SigV4 / 直接"| XRAY["xray<br/>/v1/traces"]
+    APP -->|"SigV4 / 直接"| LOGS["logs<br/>/v1/logs"]
+    APP -->|"SigV4 / 直接"| MON["monitoring<br/>/v1/metrics（プレビュー）"]
+
+    subgraph CW["Amazon CloudWatch"]
+        direction TB
+        XRAY
+        LOGS
+        MON
+    end
+```
+
+> AWS アイコン付きの構成図ソースは [`/images/aws-otel-2026/02_route_a.drawio`](/images/aws-otel-2026/02_route_a.drawio) に置いています。
 
 **コードサンプル②（経路A 環境変数フルセット・Java）**：トレース＋ログを us-east-1 へ直接送る起動例。
 
@@ -188,9 +223,33 @@ java -jar my-app.jar
 
 送り先は経路A と同じ OTLP エンドポイントです。`otlphttp` exporter に `sigv4auth` extension を組み合わせ、シグナルごとに `service` を変えて認証します（ログ→`logs`、トレース→`xray`、メトリクス→`monitoring`）。IAM は EC2 / EKS いずれも `CloudWatchAgentServerPolicy`。EKS なら IRSA でロールをサービスアカウントに紐づけます。
 
-:::message
-**図3（経路Bの集約・加工構成）**: 複数のアプリ → 1つの Collector → 3エンドポイントへ。Collector 内に sigv4auth とパイプラインがある図。
-:::
+**図3（経路Bの集約・加工構成）**: 複数のアプリ → 1つの Collector → 3エンドポイントへ。Collector 内に sigv4auth とパイプラインがあります。
+
+```mermaid
+flowchart LR
+    A1["アプリ1"] --> COL
+    A2["アプリ2"] --> COL
+    A3["アプリ3"] --> COL
+
+    subgraph COL["OpenTelemetry Collector<br/>(CloudWatch Agent / ADOT / 標準)"]
+        direction TB
+        PIPE["receivers → processors<br/>(batch / サンプリング)"]
+        AUTH["sigv4auth extension"]
+    end
+
+    COL -->|"SigV4 / 1本に集約"| XRAY["xray<br/>/v1/traces"]
+    COL -->|"SigV4 / 1本に集約"| LOGS["logs<br/>/v1/logs"]
+    COL -->|"SigV4 / 1本に集約"| MON["monitoring<br/>/v1/metrics（プレビュー）"]
+
+    subgraph CW["Amazon CloudWatch"]
+        direction TB
+        XRAY
+        LOGS
+        MON
+    end
+```
+
+> AWS アイコン付きの構成図ソースは [`/images/aws-otel-2026/03_route_b.drawio`](/images/aws-otel-2026/03_route_b.drawio) に置いています。
 
 **コードサンプル③（Collector YAML、logs + traces を us-east-1 へ）**：
 
