@@ -23,7 +23,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check for published article changes
+        id: check
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          if [[ -z "$BEFORE" ]] || [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep "^articles/.*\.md$" || true)
+          else
+            CHANGED=$(git diff --name-only "$BEFORE" "$AFTER" | grep "^articles/.*\.md$" || true)
+          fi
+
+          HAS_PUBLISHED=false
+          while IFS= read -r file; do
+            if [[ -n "$file" ]] && grep -q "published: true" "$file" 2>/dev/null; then
+              HAS_PUBLISHED=true
+              break
+            fi
+          done <<< "$CHANGED"
+          echo "has_published=$HAS_PUBLISHED" >> "$GITHUB_OUTPUT"
+
       - name: Run
+        if: steps.check.outputs.has_published == 'true'
         uses: C-Naoki/zenn-qiita-sync@main
         with:
           qiita-token: ${{ secrets.QIITA_TOKEN }}
