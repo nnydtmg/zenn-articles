@@ -25,6 +25,7 @@ published: false
 | ADOT | AWS が提供する OpenTelemetry ディストリビューション（SDK と Collector） |
 | Collector | アプリとバックエンドの間でテレメトリを集約・加工・転送するコンポーネント |
 | Application Signals | CloudWatch の APM 機能。サービス検出・サービスマップ・SLO を提供 |
+| Fluent Bit | ログ収集・転送に強い軽量エージェント。AWS では CloudWatch Logs へのコンテナログ転送などでよく使われる |
 
 ## はじめに：選択肢が増えて、むしろ迷うようになった
 
@@ -181,9 +182,9 @@ java -jar my-app.jar
 
 **経路Aが向くケース**：PoC、小〜中規模、AWS に閉じてよい構成、Collector の運用人員を割きたくないチーム。ECS / EC2 の小規模アプリは経路Aから始めやすいです。
 
-## 5. 経路B：Collector を挟む（CloudWatch Agent / ADOT / 標準 Collector）
+## 5. 経路B：Collector / Fluent Bit を挟む（CloudWatch Agent / ADOT / 標準 Collector）
 
-経路A に Collector を1段足すと、何が解けるのか。
+経路A に Collector を1段足すと、何が解けるのか。ここでいう Collector は主に OpenTelemetry Collector を指しますが、ログ収集では Fluent Bit を組み合わせる構成も実務上よく使われます（後述）。
 
 - **複数アプリ・ホストの集約** — CloudWatch への接続数を1本にまとめる。
 - **送信前の加工** — 属性の付け外し、バッチ化、サンプリングを Collector 側で。アプリを再デプロイせずに量・中身を制御。
@@ -244,6 +245,45 @@ service:
 補足：Application Signals で確実に100%のスパンを記録したい重要アプリでは、SDK 側のサンプラーを `always_on` にしておくことが公式に推奨されています（コストとのトレードオフに注意）。
 
 **経路Bが向くケース**：複数サービスを集約したい、本番でコスト・ノイズを制御したい、Prometheus 資産を活かしたい、AWS サポート付きにしたいチーム。EKS / 複数サービスなら経路Bが自然です。
+
+### Fluent Bit はログ収集の現実解
+
+ここで、AWS のログ収集でよく登場する **Fluent Bit** にも触れておきます。OpenTelemetry Collector がトレース・メトリクス・ログをまとめて扱える汎用パイプラインなのに対し、Fluent Bit はもともと **ログ収集・転送に強い軽量エージェント** です。EKS / ECS / EC2 では、アプリの標準出力やコンテナログを Fluent Bit で集めて CloudWatch Logs に送る構成がよく使われます。
+
+つまり Collector 経由といっても、すべてを OpenTelemetry Collector に寄せる必要はありません。実務では役割で分担する構成も自然です。
+
+| 役割 | よく使うコンポーネント | 向いている用途 |
+| --- | --- | --- |
+| トレース | ADOT Java Agent + OTel Collector | X-Ray / Application Signals へ送る |
+| メトリクス | OTel Collector / CloudWatch Agent | ランタイムメトリクス、Prometheus 受信、CloudWatch Metrics |
+| ログ | Fluent Bit / CloudWatch Agent / OTel Collector | コンテナログ、標準出力、CloudWatch Logs |
+
+ログだけを Fluent Bit に任せると、構成は次のようになります。
+
+```text
+Java App + ADOT Java Agent
+  ├── traces → OTel Collector → X-Ray / Application Signals
+  └── stdout logs → Fluent Bit → CloudWatch Logs
+```
+
+この構成の利点は、ログ収集を既存の Fluent Bit 運用に乗せつつ、トレースは OpenTelemetry の文脈で扱えることです。EKS では DaemonSet として Fluent Bit を配置し、各ノードのコンテナログを集める構成が取りやすく、ECS では FireLens 経由で Fluent Bit を使えます。
+
+Fluent Bit から CloudWatch Logs に送る最小イメージは次のとおりです。
+
+```yaml
+pipeline:
+  outputs:
+    - name: cloudwatch_logs
+      match: '*'
+      region: us-east-1
+      log_group_name: my-application-logs
+      log_stream_prefix: from-fluent-bit-
+      auto_create_group: on
+```
+
+実運用では、LogGroup を自動作成するか IaC で事前作成するか、ロググループ／ストリーム名を Kubernetes metadata から組み立てるか、retention policy をどこで管理するか、JSON で構造化して送るか、トレース相関のため trace id / span id をログに含めるか、といった点を検討します。
+
+> Fluent Bit は OpenTelemetry Collector の完全な代替というより、ログ収集に強い軽量エージェントです。トレースやメトリクスまで含めて OpenTelemetry のパイプラインで統一したい場合は OTel Collector、ログ収集を堅実に運用したい場合は Fluent Bit、という役割分担で考えるとわかりやすいです（CloudWatch OTLP エンドポイントへ OpenTelemetry 形式で送る OpenTelemetry output plugin もありますが、まずは「ログは Fluent Bit、トレースは OTel Collector / ADOT SDK」と分けて考えるのが理解しやすいです）。
 
 ## 6. 経路C：カスタム Collector とマルチクラウド
 
@@ -338,6 +378,9 @@ EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が
 - [ ] Collector 経由の場合、`sigv4auth` の `service` をシグナルごとに変えたか
 - [ ] bearer token を使う場合、対象が logs / metrics のみであることを確認したか
 - [ ] メトリクス直接取り込みのプレビュー/提供状況を最新ドキュメントで確認したか
+- [ ] ログ収集を Fluent Bit に任せるか、OTel Collector に寄せるか決めたか
+- [ ] Fluent Bit を使う場合、LogGroup / LogStream / retention / 構造化ログをどう管理するか決めたか
+- [ ] トレースとログを相関するため、ログに trace id / span id を含めたか
 
 ## 参照した公式ドキュメント
 
@@ -346,6 +389,9 @@ EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が
 - [collector-less / ADOT SDK](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLP-UsingADOT.html)
 - [OpenTelemetry Collector 設定例](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPSimplesetup.html)
 - [OpenTelemetry Go zero-code instrumentation](https://opentelemetry.io/docs/zero-code/go/)
+- [Fluent Bit CloudWatch output plugin](https://docs.fluentbit.io/manual/data-pipeline/outputs/cloudwatch)
+- [Fluent Bit OpenTelemetry output plugin](https://docs.fluentbit.io/manual/data-pipeline/outputs/opentelemetry)
+- [AWS for Fluent Bit](https://github.com/aws/aws-for-fluent-bit)
 
 ### 関連アップデート記事
 
