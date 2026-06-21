@@ -30,7 +30,10 @@ published: false
 
 少し前まで、「AWS で OpenTelemetry をやる」と言えば答えはほぼ一つでした。ADOT の Collector を立て、X-Ray と CloudWatch に送る。それ以外の道は事実上なかったのです。
 
-ところが状況は変わりました。CloudWatch が **トレース・ログ・メトリクスの3シグナルすべてを OTLP で直接受信できる** ようになり、Collector を一切挟まずに送るという選択肢が現実的になりました。メトリクスの OTLP 直接取り込みは執筆時点でプレビューですが、これによって CloudWatch はオブザーバビリティの三本柱をオープン標準のプロトコル一本で受けられるようになっています。
+ところが状況は変わりました。CloudWatch が **トレース・ログ・メトリクスの3シグナルすべてを OTLP で直接受信できる** ようになり、Collector を一切挟まずに送るという選択肢が現実的になりました。トレース／ログについては Transaction Search の提供（2024年11月）で OTLP エンドポイント経由の取り込みが可能になり[^update-txsearch]、メトリクスも 2026年4月に OTLP 直接取り込みが追加されました（執筆時点ではプレビュー）[^update-otlp-metrics]。これによって CloudWatch はオブザーバビリティの三本柱をオープン標準のプロトコル一本で受けられるようになっています。
+
+[^update-txsearch]: アップデート: [Amazon CloudWatch launches full visibility into application transactions（AWS What's New, 2024-11）](https://aws.amazon.com/about-aws/whats-new/2024/11/amazon-cloudwatch-visibility-application-transactions/)。Transaction Search の提供により、トレース用 OTLP エンドポイントへの送信と、スパンの100%構造化ログ取り込みが可能になりました。
+[^update-otlp-metrics]: アップデート: [Amazon CloudWatch now supports OpenTelemetry metrics in public preview（AWS What's New, 2026-04）](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-cloudwatch-opentelemetry-metrics/) / 解説ブログ [Introducing OpenTelemetry and PromQL support in Amazon CloudWatch（AWS Cloud Operations Blog）](https://aws.amazon.com/blogs/mt/introducing-opentelemetry-promql-support-in-amazon-cloudwatch/)。メトリクスを OTLP で直接送り、PromQL で参照できるようになりました（プレビュー）。
 
 つまり今は「ADOT 一択」ではなく、複数の入り口から選べる時代です。選択肢が増えたのは良いことですが、初めて触る人には「で、結局どれを使えばいいのか」が見えにくくなりました。この記事はそこを整理します。
 
@@ -69,7 +72,7 @@ CloudWatch の OTLP エンドポイントは **シグナルごとに別ホスト
 
 - トレース：`https://xray.us-east-1.amazonaws.com/v1/traces`
 - ログ：`https://logs.us-east-1.amazonaws.com/v1/logs`
-- メトリクス：`https://monitoring.us-east-1.amazonaws.com/v1/metrics`（プレビュー）
+- メトリクス：`https://monitoring.us-east-1.amazonaws.com/v1/metrics`（プレビュー[^update-otlp-metrics]）
 
 プロトコルは **HTTP のみ（gRPC 非対応）**、OTLP 1.x、ペイロードは binary / json、圧縮は gzip か none。
 
@@ -182,7 +185,7 @@ java -jar my-app.jar
 
 - **複数アプリ・ホストの集約** — CloudWatch への接続数を1本にまとめる。
 - **送信前の加工** — 属性の付け外し、バッチ化、サンプリングを Collector 側で。アプリを再デプロイせずに量・中身を制御。
-- **Prometheus 受信** — Prometheus receiver などで取り込んだメトリクスを、CloudWatch 側の対応機能で PromQL ライクに扱える構成を取りやすい。
+- **Prometheus 受信** — Prometheus receiver などで取り込んだメトリクスを、CloudWatch 側の対応機能で PromQL ライクに扱える構成を取りやすい（CloudWatch の OpenTelemetry メトリクス／PromQL 対応はプレビュー[^update-otlp-metrics]）。
 
 なお、AWS で最も無難に始める Collector 経由の構成は、CloudWatch Agent に含まれる pre-packaged OpenTelemetry setup を使う方法です。この記事では理解しやすさのため「Collector」と表現しますが、実装時は CloudWatch Agent / ADOT Collector / upstream Collector のどれを使うかを明示して選んでください。
 
@@ -341,6 +344,13 @@ EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が
 - [collector-less / ADOT SDK](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLP-UsingADOT.html)
 - [OpenTelemetry Collector 設定例](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPSimplesetup.html)
 - [OpenTelemetry Go zero-code instrumentation](https://opentelemetry.io/docs/zero-code/go/)
+
+### 関連アップデート記事
+
+- [Amazon CloudWatch launches full visibility into application transactions（AWS What's New, 2024-11）](https://aws.amazon.com/about-aws/whats-new/2024/11/amazon-cloudwatch-visibility-application-transactions/)
+- [Amazon CloudWatch now supports OpenTelemetry metrics in public preview（AWS What's New, 2026-04）](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-cloudwatch-opentelemetry-metrics/)
+- [Introducing OpenTelemetry and PromQL support in Amazon CloudWatch（AWS Cloud Operations Blog）](https://aws.amazon.com/blogs/mt/introducing-opentelemetry-promql-support-in-amazon-cloudwatch/)
+- [AWS Observability ICYMI: Jan-May 2026（AWS Cloud Operations Blog）](https://aws.amazon.com/blogs/mt/aws-observability-icymi-jan-may-2026/)
 
 ---
 
