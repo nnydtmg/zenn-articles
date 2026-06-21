@@ -51,16 +51,18 @@ AWS で OTel を導入する構成は、突き詰めると **「Collector を挟
 
 ### 構成ごとの機能差（公式比較表より）
 
-| 機能 | 経路A（collector-less） | 経路B（Collector 経由） | 経路C（カスタム Collector） |
+| 機能 | 経路A（collector-less / ADOT SDK） | 経路B（Collector 経由） | 経路C（Custom Collector） |
 | --- | --- | --- | --- |
-| Application Signals（APM・サービス検出・サービスマップ） | ○ | ○ | ○ |
+| Application Signals（APM・サービス検出・サービスマップ） | ○ | ○（CloudWatch Agent / ADOT Collector 前提。upstream単体は要確認） | ○ |
 | スパン／トレースサマリの検索・分析 | ○ | ○ | ○ |
-| ログサマリの検索・分析 | ○ | ○ | ○ |
-| AWS インフラ属性によるエンリッチメント | × | ○ | ○ |
-| ランタイムメトリクス（JVM 等）とアプリの相関 | × | ○（標準 Collector） | × |
-| 対応シグナル | メトリクス・トレース（ログは言語/SDK依存） | receiver/exporter 構成次第でログ・メトリクス・トレース | 同左 |
+| ログサマリの検索・分析 | △（ログ送信手順はあるが、言語/SDK・機能差を確認） | ○ | ○ |
+| AWS インフラ属性によるエンリッチメント | × | △（Collector種別による） | ○ |
+| ランタイムメトリクス（JVM 等）とアプリの相関 | × | ×〜○（Collector種別による） | ○ |
+| 対応シグナル | Metrics / Traces中心。Logsは言語/SDK依存 | 構成次第でLogs / Metrics / Traces | 構成次第でLogs / Metrics / Traces |
 
-読み取れるのは、**「とりあえず Application Signals で APM を見る」だけなら全経路で可能**、ただし **ホスト先 AWS インフラの属性でエンリッチしたいなら Collector が要る** という線引きです。
+※ 経路Bの「Collector 経由」は、CloudWatch Agent / ADOT Collector / upstream OpenTelemetry Collector をまとめた呼び方です。Application Signals、AWSインフラ属性によるエンリッチメント、ランタイムメトリクス相関は、どの Collector ディストリビューションを使うかで変わります。実装時は AWS 公式の [feature support 表](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPGettingStarted.html)を確認してください。
+
+読み取れるのは、**「とりあえず Application Signals で APM を見る」だけなら全経路で利用しやすい**（ただし Collector 種別による差はある）、また **ホスト先 AWS インフラの属性でエンリッチしたいなら Collector が要る** という線引きです。
 
 ## 2. 先に知るべき共通制約
 
