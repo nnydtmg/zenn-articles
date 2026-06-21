@@ -7,7 +7,7 @@ published: false
 ---
 
 :::message
-この記事は、これから AWS に OpenTelemetry を導入する人が「自分の状況でどの構成を選ぶか」を判断できるようにするための整理ガイドです。手順を一行ずつ追うハンズオンではなく、3つの構成パターンの違いと、公式ドキュメントで裏取りした設定サンプルを並べて比較します。
+2026年時点での AWS × OpenTelemetry の構成パターン（collector-less / Collector 経由 / カスタム Collector）の違いと選び方をまとめています。どれを選ぶか迷っている方の参考になれば嬉しいです！
 :::
 
 ## この記事でわかること
@@ -16,27 +16,15 @@ published: false
 - どの構成を、どんな条件で選ぶべきか
 - 導入前に知っておくべき制約・コスト・落とし穴
 
-## ミニ用語表
-
-| 用語 | 意味 |
-| --- | --- |
-| OTel（OpenTelemetry） | アプリからトレース・メトリクス・ログを出すための標準仕様と実装群 |
-| OTLP | OTel のデータ送信プロトコル |
-| ADOT | AWS が提供する OpenTelemetry ディストリビューション（SDK と Collector） |
-| Collector | アプリとバックエンドの間でテレメトリを集約・加工・転送するコンポーネント |
-| Application Signals | CloudWatch の APM 機能。サービス検出・サービスマップ・SLO を提供 |
-| Fluent Bit | ログ収集・転送に強い軽量エージェント。AWS では CloudWatch Logs へのコンテナログ転送などでよく使われる |
-
 ## はじめに：選択肢が増えて、むしろ迷うようになった
 
-少し前まで、「AWS で OpenTelemetry をやる」と言えば答えはほぼ一つでした。ADOT の Collector を立て、X-Ray と CloudWatch に送る。それ以外の道は事実上なかったのです。
+社内のシステムに OpenTelemetry（OTel：アプリからトレース・メトリクス・ログを出すための標準仕様と実装群）を導入しようとして、「で、結局どれを使えばいいの？」と迷ったのが、この記事を書いたきっかけです。
 
-ところが状況は変わりました。CloudWatch が **トレース・ログ・メトリクスの3シグナルすべてを OTLP で直接受信できる** ようになり、Collector を一切挟まずに送るという選択肢が現実的になりました。トレース／ログについては Transaction Search の提供（2024年11月）で OTLP エンドポイント経由の取り込みが可能になり[^update-txsearch]、メトリクスも 2026年4月に OTLP 直接取り込みが追加されました（執筆時点ではプレビュー）[^update-otlp-metrics]。これによって CloudWatch はオブザーバビリティの三本柱をオープン標準のプロトコル一本で受けられるようになっています。
+少し前まで、「AWS で OpenTelemetry をやる」と言えば答えはほぼ一つでした。ADOT（AWS が提供する OpenTelemetry ディストリビューション）の Collector（アプリとバックエンドの間でテレメトリを集約・加工・転送するコンポーネント）を立て、X-Ray と CloudWatch に送る。それ以外の道は事実上なかったのです。
 
-[^update-txsearch]: アップデート: [Amazon CloudWatch launches full visibility into application transactions（AWS What's New, 2024-11）](https://aws.amazon.com/about-aws/whats-new/2024/11/amazon-cloudwatch-visibility-application-transactions/)。Transaction Search の提供により、トレース用 OTLP エンドポイントへの送信と、スパンの100%構造化ログ取り込みが可能になりました。
-[^update-otlp-metrics]: アップデート: [Amazon CloudWatch now supports OpenTelemetry metrics in public preview（AWS What's New, 2026-04）](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-cloudwatch-opentelemetry-metrics/) / 解説ブログ [Introducing OpenTelemetry and PromQL support in Amazon CloudWatch（AWS Cloud Operations Blog）](https://aws.amazon.com/blogs/mt/introducing-opentelemetry-promql-support-in-amazon-cloudwatch/)。メトリクスを OTLP で直接送り、PromQL で参照できるようになりました（プレビュー）。
+ところが状況は変わりました。CloudWatch が **トレース・ログ・メトリクスの3シグナルすべてを OTLP（OTel のデータ送信プロトコル）で直接受信できる** ようになり、Collector を一切挟まずに送るという選択肢が現実的になりました。トレース／ログについては [Transaction Search の提供（2024年11月）](https://aws.amazon.com/about-aws/whats-new/2024/11/amazon-cloudwatch-visibility-application-transactions/)で OTLP エンドポイント経由の取り込みが可能になり、メトリクスも [2026年4月に OTLP 直接取り込みが追加](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-cloudwatch-opentelemetry-metrics/)されました（執筆時点ではプレビュー）。これによって CloudWatch はオブザーバビリティの三本柱をオープン標準のプロトコル一本で受けられるようになっています。
 
-つまり今は「ADOT 一択」ではなく、複数の入り口から選べる時代です。選択肢が増えたのは良いことですが、初めて触る人には「で、結局どれを使えばいいのか」が見えにくくなりました。この記事はそこを整理します。
+つまり今は「ADOT 一択」ではなく、複数の入り口から選べる時代です。選択肢が増えたのは良いことですが、私も最初は「で、結局どれを使えばいいのか」がよくわからなくて困りました（同じように迷っている方は多いんじゃないかなと思います）。この記事はそこを自分なりに整理してみたものです。
 
 ## 1. 全体地図：構成は「Collector を挟むか」で3つに分かれる
 
@@ -48,7 +36,9 @@ AWS で OTel を導入する構成は、突き詰めると **「Collector を挟
 
 一番大事な事実を先に押さえます。**この3経路は、最終的にどれも SigV4 認証で同じ CloudWatch OTLP エンドポイントにデータを届けます。計装コード自体は経路に依存しません。** だから「経路を間違えたら計装をやり直し」という心配は要りません。計装は先に進めてよく、収集・転送の部分だけを後から差し替えられます。これがこの記事全体を貫く安心材料です。
 
-> 📌 **図1（意思決定の全体地図）**：3経路がそれぞれ SDK から出発し、A は直接、B/C は Collector を経由して、同じ3つの OTLP エンドポイント（xray / logs / monitoring）に SigV4 で収束する図。
+:::message
+**図1（意思決定の全体地図）**: 3経路がそれぞれ SDK から出発し、A は直接、B/C は Collector を経由して、同じ3つの OTLP エンドポイント（xray / logs / monitoring）に SigV4 で収束する図。
+:::
 
 ### 構成ごとの機能差（公式比較表より）
 
@@ -75,7 +65,7 @@ CloudWatch の OTLP エンドポイントは **シグナルごとに別ホスト
 
 - トレース：`https://xray.us-east-1.amazonaws.com/v1/traces`
 - ログ：`https://logs.us-east-1.amazonaws.com/v1/logs`
-- メトリクス：`https://monitoring.us-east-1.amazonaws.com/v1/metrics`（プレビュー[^update-otlp-metrics]）
+- メトリクス：`https://monitoring.us-east-1.amazonaws.com/v1/metrics`（[プレビュー](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-cloudwatch-opentelemetry-metrics/)）
 
 プロトコルは **HTTP のみ（gRPC 非対応）**、OTLP 1.x、ペイロードは binary / json、圧縮は gzip か none。
 
@@ -158,7 +148,9 @@ java -jar my-app.jar
 - IAM は、トレースなら `AWSXrayWriteOnlyPolicy`、ログなら `logs:PutLogEvents` / `logs:DescribeLogGroups` / `logs:DescribeLogStreams`。認証情報は ADOT SDK が AWS SDK 経由で自動探索。
 - 最低バージョン（Java）：ADOT Java エージェント 2.11.2 以降。
 
-> 📌 **図2（経路Aの最小構成）**：アプリ（ADOT Java エージェント同梱）が、3本のエンドポイントへ直接 SigV4 で送る図。間に Collector は無い。
+:::message
+**図2（経路Aの最小構成）**: アプリ（ADOT Java エージェント同梱）が、3本のエンドポイントへ直接 SigV4 で送る図。間に Collector は無い。
+:::
 
 **コードサンプル②（経路A 環境変数フルセット・Java）**：トレース＋ログを us-east-1 へ直接送る起動例。
 
@@ -188,7 +180,7 @@ java -jar my-app.jar
 
 - **複数アプリ・ホストの集約** — CloudWatch への接続数を1本にまとめる。
 - **送信前の加工** — 属性の付け外し、バッチ化、サンプリングを Collector 側で。アプリを再デプロイせずに量・中身を制御。
-- **Prometheus 受信** — Prometheus receiver などで取り込んだメトリクスを、CloudWatch 側の対応機能で PromQL ライクに扱える構成を取りやすい（CloudWatch の OpenTelemetry メトリクス／PromQL 対応はプレビュー[^update-otlp-metrics]）。
+- **Prometheus 受信** — Prometheus receiver などで取り込んだメトリクスを、CloudWatch 側の対応機能で PromQL ライクに扱える構成を取りやすい（CloudWatch の OpenTelemetry メトリクス／PromQL 対応は[プレビュー](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-cloudwatch-opentelemetry-metrics/)）。
 
 なお、AWS で最も無難に始める Collector 経由の構成は、CloudWatch Agent に含まれる pre-packaged OpenTelemetry setup を使う方法です。この記事では理解しやすさのため「Collector」と表現しますが、実装時は CloudWatch Agent / ADOT Collector / upstream Collector のどれを使うかを明示して選んでください。
 
@@ -196,7 +188,9 @@ java -jar my-app.jar
 
 送り先は経路A と同じ OTLP エンドポイントです。`otlphttp` exporter に `sigv4auth` extension を組み合わせ、シグナルごとに `service` を変えて認証します（ログ→`logs`、トレース→`xray`、メトリクス→`monitoring`）。IAM は EC2 / EKS いずれも `CloudWatchAgentServerPolicy`。EKS なら IRSA でロールをサービスアカウントに紐づけます。
 
-> 📌 **図3（経路Bの集約・加工構成）**：複数のアプリ → 1つの Collector → 3エンドポイントへ。Collector 内に sigv4auth とパイプラインがある図。
+:::message
+**図3（経路Bの集約・加工構成）**: 複数のアプリ → 1つの Collector → 3エンドポイントへ。Collector 内に sigv4auth とパイプラインがある図。
+:::
 
 **コードサンプル③（Collector YAML、logs + traces を us-east-1 へ）**：
 
@@ -318,7 +312,9 @@ service:
       exporters: [otlphttp]
 ```
 
-> ⚠️ API キーを設定ファイルに直書きしない。`filename` でマウントしたシークレットを読むか、`${env:VAR}` でシークレットマネージャから注入します。
+:::message alert
+API キーを設定ファイルに直書きしない。`filename` でマウントしたシークレットを読むか、`${env:VAR}` でシークレットマネージャから注入します。
+:::
 
 **経路Cが向くケース**：マルチクラウド／ハイブリッド前提、将来 Grafana など AWS 外のバックエンドにも分岐させたい、標準に無いコンポーネントが要るチーム。オンプレ / 他クラウド / CI から送る場合も経路C（ただし traces は SigV4 が必要）。
 
@@ -346,7 +342,9 @@ trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 
 EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が要ります。メトリクス↔ログの相関は、計装時に `aws.log.group.names` を `OTEL_RESOURCE_ATTRIBUTES` に足すだけで有効になります。
 
-> 📌 **図4（計装した値が CloudWatch 上でどう見えるか）**：サービスマップ＋レイテンシ/エラー率のグラフ＋トレース詳細下部に相関ログが並ぶ画面。第3章で設定した `service.name` がサービス名として、`deployment.environment` が「Hosted In」として表示される点を矢印で示し、計装→可視化の伏線を回収する。
+:::message
+**図4（計装した値が CloudWatch 上でどう見えるか）**: サービスマップ＋レイテンシ/エラー率のグラフ＋トレース詳細下部に相関ログが並ぶ画面。第3章で設定した `service.name` がサービス名として、`deployment.environment` が「Hosted In」として表示される点を矢印で示し、計装→可視化の伏線を回収する。
+:::
 
 ## 8. 結論：状況別の早見表
 
@@ -368,6 +366,12 @@ EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が
 
 そして現実的なおすすめは、**経路A で始めて、必要になったら B / C に育てる** こと。計装コードは経路に依存しないので、収集・転送レイヤだけを後から差し替えれば移行できます。
 
+
+## 最後に
+
+私のおすすめは「まず経路Aで動かしてみる」ことです。構成に悩んでいるうちは一歩も進めないので、とにかく collector-less で繋いでみると、何がボトルネックになるか・本当に Collector が必要かどうかが見えてきます。計装コードは経路に依存しないので、後から B / C に育てることもできますし（この点は本当に助かります）。
+
+AWS の OpenTelemetry 対応はまだ進化中なので、今後さらに選択肢が整理されていくんじゃないかなと思います。まずは一度試してみていただければ嬉しいです！
 
 ## 参照した公式ドキュメント
 
