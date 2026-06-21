@@ -368,19 +368,6 @@ EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が
 
 そして現実的なおすすめは、**経路A で始めて、必要になったら B / C に育てる** こと。計装コードは経路に依存しないので、収集・転送レイヤだけを後から差し替えれば移行できます。
 
-## 公開前チェックリスト
-
-- [ ] Transaction Search を有効化したか
-- [ ] `service.name` を設定したか
-- [ ] `deployment.environment` を設定したか
-- [ ] ログ送信先の LogGroup / LogStream を事前作成したか
-- [ ] collector-less の traces サンプリング率を確認したか
-- [ ] Collector 経由の場合、`sigv4auth` の `service` をシグナルごとに変えたか
-- [ ] bearer token を使う場合、対象が logs / metrics のみであることを確認したか
-- [ ] メトリクス直接取り込みのプレビュー/提供状況を最新ドキュメントで確認したか
-- [ ] ログ収集を Fluent Bit に任せるか、OTel Collector に寄せるか決めたか
-- [ ] Fluent Bit を使う場合、LogGroup / LogStream / retention / 構造化ログをどう管理するか決めたか
-- [ ] トレースとログを相関するため、ログに trace id / span id を含めたか
 
 ## 参照した公式ドキュメント
 
