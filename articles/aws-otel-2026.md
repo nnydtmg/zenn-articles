@@ -1,5 +1,5 @@
 ---
-title: "2026年版・AWSでOpenTelemetryを始めるなら——CloudWatch OTLP直接/Collector経由/カスタムCollectorの選び方"
+title: "2026年版・AWSでOpenTelemetryを始めるなら—CloudWatch OTLPサポートを起点に考えてみる"
 emoji: "🔭"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws", "opentelemetry", "cloudwatch", "observability", "otel"]
