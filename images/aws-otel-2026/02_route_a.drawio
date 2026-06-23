@@ -19,14 +19,26 @@
                 <mxCell id="mon" value="monitoring&#10;/v1/metrics&#10;(プレビュー)" style="sketch=0;outlineConnect=0;fontColor=#000000;gradientColor=#F34482;gradientDirection=north;fillColor=#BC1356;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="cw" vertex="1">
                     <mxGeometry x="110" y="300" width="48" height="48" as="geometry"/>
                 </mxCell>
-                <mxCell id="e1" value="SigV4 / 直接" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;" parent="1" source="app" target="xray" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="e1" value="SigV4 / 直接" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;exitX=1;exitY=0.3;exitDx=0;exitDy=0;" parent="1" source="app" target="xray" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="300" y="164"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
-                <mxCell id="e2" value="SigV4 / 直接" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;" parent="1" source="app" target="logs" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="e2" value="SigV4 / 直接" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="app" target="logs" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="300" y="284"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
-                <mxCell id="e3" value="SigV4 / 直接" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;" parent="1" source="app" target="mon" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="e3" value="SigV4 / 直接" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=11;exitX=1;exitY=0.7;exitDx=0;exitDy=0;" parent="1" source="app" target="mon" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="300" y="404"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
             </root>
         </mxGraphModel>
