@@ -7,7 +7,7 @@ published: false
 ---
 
 :::message
-2026年時点での AWS × OpenTelemetry の構成パターン（collector-less / Collector 経由 / カスタム Collector）の違いと選び方をまとめています。どれを選ぶか迷っている方の参考になれば嬉しいです！
+2026年6月に確認した AWS × OpenTelemetry の構成パターンを、ECS Fargate で試した結果と公式ドキュメントを基にまとめました。メトリクスの OTLP 直接取り込みはプレビュー時点の内容を含むため、採用前にリンク先の最新情報も確認してください。
 :::
 
 ## この記事でわかること
@@ -26,30 +26,30 @@ published: false
 
 つまり今は「ADOT 一択」ではなく、複数の入り口から選べる時代です。選択肢が増えたのは良いことですが、私も最初は「で、結局どれを使えばいいのか」がよくわからなくて困りました（同じように迷っている方は多いんじゃないかなと思います）。この記事はそこを自分なりに整理してみたものです。
 
-## 1. 全体地図：構成は「Collector を挟むか」で3つに分かれる
+## 1. まず決めること：Collector を置くか
 
-AWS で OTel を導入する構成は、突き詰めると **「Collector を挟むか、挟むならどの Collector か」** という軸で3つに分かれます。
+私が最初に決められずにいたのは、Collector を置くかどうかでした。この記事では比較しやすいように、試した構成を次の3つに分けます。なお、これは AWS が定義する3分類ではありません。経路Cは経路Bのうち、Collector 自体を自前ビルドする場合を分けたものです。
 
 - **経路A：collector-less（ADOT SDK で直接送信）** — アプリの SDK が CloudWatch / X-Ray の OTLP エンドポイントへ直接送る。最小構成。
-- **経路B：Collector 経由（CloudWatch Agent / ADOT Collector / 標準 Collector）** — アプリ → Collector → CloudWatch。集約・フィルタ・サンプリング・Prometheus 受信を担う。
+- **経路B：Collector 経由（CloudWatch Agent / ADOT Collector / upstream Collector）** — アプリ → Collector → CloudWatch。集約・フィルタ・サンプリング・Prometheus 受信を担う。
 - **経路C：カスタム Collector** — 標準に無いコンポーネントが要る、または非 AWS 環境から送るときに自前ビルドの Collector を使う。
 
-一番大事な事実を先に押さえます。**この3経路は、最終的にどれも SigV4 認証で同じ CloudWatch OTLP エンドポイントにデータを届けます。計装コード自体は経路に依存しません。** だから「経路を間違えたら計装をやり直し」という心配は要りません。計装は先に進めてよく、収集・転送の部分だけを後から差し替えられます。これがこの記事全体を貫く安心材料です。
+今回検証した OTLP 構成では、3経路とも CloudWatch のシグナル別エンドポイントへ送ります。ただし、**経路だけを無条件に差し替えられるわけではありません**。自動・手動計装で作るスパンは再利用しやすい一方、SigV4 認証、exporter、サンプリング、Application Signals 用の processor、ログの送信先は構成ごとに見直します。また、後述する Fluent Bit の CloudWatch Logs output は OTLP エンドポイントを通りません。
 
-**図1（意思決定の全体地図）**: 3経路がそれぞれ SDK から出発し、A は直接、B/C は Collector を経由して、同じ3つの OTLP エンドポイント（xray / logs / monitoring）に SigV4 で収束します。
+**図1（今回比較した構成）**: A は SDK から直接、B/C は Collector を経由して、シグナル別の OTLP エンドポイントへ送ります。
 
 ```mermaid
 flowchart LR
-    SDK["アプリ + OTel SDK<br/>(計装は経路非依存)"]
+    SDK["アプリ + OTel SDK<br/>(送信設定は経路ごと)"]
 
     SDK -->|"経路A：直接送信 (SigV4)"| EP
-    SDK --> COLB["経路B<br/>Collector<br/>(CloudWatch Agent /<br/>ADOT / 標準)"]
+    SDK --> COLB["経路B<br/>Collector<br/>(CloudWatch Agent /<br/>ADOT / upstream)"]
     SDK --> COLC["経路C<br/>カスタム Collector"]
 
     COLB -->|"SigV4"| EP
     COLC -->|"traces は SigV4 のみ<br/>logs・metrics は bearer token も可"| EP
 
-    subgraph EP["Amazon CloudWatch OTLP エンドポイント (SigV4)"]
+    subgraph EP["Amazon CloudWatch：シグナル別 OTLP エンドポイント"]
         direction TB
         XRAY["xray<br/>/v1/traces"]
         LOGS["logs<br/>/v1/logs"]
@@ -57,11 +57,11 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図（SVG。draw.io で再編集も可能）はこちら。
+> AWS アイコン付きの構成図です。再編集用の [draw.io ソース](/images/aws-otel-2026/01_decision_map.drawio) も置いています。
 
-![図1：意思決定の全体地図](/images/aws-otel-2026/01_decision_map.drawio.svg)
+![図1：今回比較した構成](/images/aws-otel-2026/01_decision_map.drawio.svg)
 
-### 構成ごとの機能差（公式比較表より）
+### 構成ごとの機能差
 
 | 機能 | 経路A（collector-less / ADOT SDK） | 経路B（Collector 経由） | 経路C（Custom Collector） |
 | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ flowchart LR
 
 ※ 経路Bの「Collector 経由」は、CloudWatch Agent / ADOT Collector / upstream OpenTelemetry Collector をまとめた呼び方です。Application Signals、AWSインフラ属性によるエンリッチメント、ランタイムメトリクス相関は、どの Collector ディストリビューションを使うかで変わります。実装時は AWS 公式の [feature support 表](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPGettingStarted.html)を確認してください。
 
-読み取れるのは、**「とりあえず Application Signals で APM を見る」だけなら全経路で利用しやすい**（ただし Collector 種別による差はある。特に経路Cは標準のカスタム Collector イメージだけでは APM 指標が出ない点に注意。§8で実機検証）、また **ホスト先 AWS インフラの属性でエンリッチしたいなら Collector が要る** という線引きです。
+ここで注意したいのは、**OTLP のスパンが Transaction Search で検索できることと、Application Signals のサービス指標が生成されることは別**だという点です。Application Signals には対応する ADOT SDK または `awsapplicationsignals` processor が必要です。特に経路Cは upstream Collector の標準イメージだけでは APM 指標が出ません（§8で実機検証）。
 
 ## 2. 先に知るべき共通制約
 
@@ -100,7 +100,7 @@ CloudWatch の OTLP エンドポイントは **シグナルごとに別ホスト
 
 ### 認証
 
-- 原則 SigV4。Collector では `sigv4auth` extension が必須。
+- AWS 認証情報を使う場合は SigV4。upstream Collector の設定例では `sigv4auth` extension を使う。
 - bearer token 認証は **メトリクスとログのみ**（サービスごとに別 API キー）。**トレースは bearer token 非対応で SigV4 のみ**。
 - bearer token は長期キーなので、Secrets Manager / Parameter Store / Kubernetes Secret から注入する。設定ファイルへの直書きは全経路で禁止。
 
@@ -110,23 +110,23 @@ CloudWatch の OTLP エンドポイントは **シグナルごとに別ホスト
 
 ### サンプリングとコスト（最重要の落とし穴）
 
-collector-less で traces を直接送る場合、SDK のデフォルトは **100% サンプリング** になり得ます。X-Ray の集中サンプリング（reservoir=1/s, rate=5%）は、明示的に `OTEL_TRACES_SAMPLER=xray` を設定しないと適用されません。Transaction Search で全量可視化したい場合はデフォルトのままでよいですが、**PoC 後はサンプリングを必ず見直してください**。取り込み量が想定の何倍にもなり、コストに直結します。
+collector-less で traces を直接送る場合、使用する ADOT SDK の既定値によっては **100% サンプリング** になります。X-Ray の集中サンプリングを使うには、対応する ADOT SDK とサンプリングルール取得先の設定が必要です。`xray` sampler は upstream の全言語 SDK で共通に使える設定ではありません。**PoC 後は、利用言語・エージェントの公式手順を確認してサンプリングを見直してください**。取り込み量とコストに直結します。
 
-ローカルサンプリングで5%にする場合（公式の値）：
+例としてローカルサンプリングで5%にする場合：
 
 ```bash
 OTEL_TRACES_SAMPLER=parentbased_traceidratio
 OTEL_TRACES_SAMPLER_ARG=0.05
 ```
 
-X-Ray 集中サンプリングを使う場合：
+ADOT Java で X-Ray 集中サンプリングを使う場合の設定例（CloudWatch Agent など、サンプリングルールを提供するコンポーネントが別途必要）：
 
 ```bash
 OTEL_TRACES_SAMPLER=xray
 OTEL_TRACES_SAMPLER_ARG=endpoint=http://cloudwatch-agent.amazon-cloudwatch:2000
 ```
 
-## 3. 計装レイヤ：どの経路でも共通の出発点
+## 3. 先にアプリを計装する
 
 経路をどれにするかと関係なく、まずアプリを計装します。OTel SDK を入れ、自動計装で HTTP・DB・各種クライアントのスパンを取れるようにするのが基本です。
 
@@ -187,7 +187,7 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図（SVG。draw.io で再編集も可能）はこちら。
+> AWS アイコン付きの構成図です。再編集用の [draw.io ソース](/images/aws-otel-2026/02_route_a.drawio) も置いています。
 
 ![図2：経路Aの最小構成](/images/aws-otel-2026/02_route_a.drawio.svg)
 
@@ -213,7 +213,7 @@ java -jar my-app.jar
 
 **経路Aが向くケース**：PoC、小〜中規模、AWS に閉じてよい構成、Collector の運用人員を割きたくないチーム。ECS / EC2 の小規模アプリは経路Aから始めやすいです。
 
-## 5. 経路B：Collector / Fluent Bit を挟む（CloudWatch Agent / ADOT / 標準 Collector）
+## 5. 経路B：Collector / Fluent Bit を挟む（CloudWatch Agent / ADOT / upstream Collector）
 
 経路A に Collector を1段足すと、何が解けるのか。ここでいう Collector は主に OpenTelemetry Collector を指しますが、ログ収集では Fluent Bit を組み合わせる構成も実務上よく使われます（後述）。
 
@@ -235,7 +235,7 @@ flowchart LR
     A2["アプリ2"] --> COL
     A3["アプリ3"] --> COL
 
-    subgraph COL["OpenTelemetry Collector<br/>(CloudWatch Agent / ADOT / 標準)"]
+    subgraph COL["OpenTelemetry Collector<br/>(CloudWatch Agent / ADOT / upstream)"]
         direction TB
         PIPE["receivers → processors<br/>(batch / サンプリング)"]
         AUTH["sigv4auth extension"]
@@ -253,7 +253,7 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図（SVG。draw.io で再編集も可能）はこちら。
+> AWS アイコン付きの構成図です。再編集用の [draw.io ソース](/images/aws-otel-2026/03_route_b.drawio) も置いています。
 
 ![図3：経路Bの集約・加工構成](/images/aws-otel-2026/03_route_b.drawio.svg)
 
@@ -309,7 +309,7 @@ service:
 
 ここで、AWS のログ収集でよく登場する **Fluent Bit** にも触れておきます。OpenTelemetry Collector がトレース・メトリクス・ログをまとめて扱える汎用パイプラインなのに対し、Fluent Bit はもともと **ログ収集・転送に強い軽量エージェント** です。EKS / ECS / EC2 では、アプリの標準出力やコンテナログを Fluent Bit で集めて CloudWatch Logs に送る構成がよく使われます。
 
-つまり Collector 経由といっても、すべてを OpenTelemetry Collector に寄せる必要はありません。実務では役割で分担する構成も自然です。
+すべてを OpenTelemetry Collector に寄せる必要はありません。実務では役割で分担する構成も自然です。ただし、Fluent Bit の `cloudwatch_logs` output は CloudWatch Logs API へ送るため、前章までの「CloudWatch OTLP へ送る経路」とは別経路です。
 
 | 役割 | よく使うコンポーネント | 向いている用途 |
 | --- | --- | --- |
@@ -365,7 +365,7 @@ extensions:
     filename: "/etc/otel/cw-api-key"
 exporters:
   otlphttp:
-    endpoint: "https://monitoring.us-east-1.amazonaws.com/v1/metrics"
+    metrics_endpoint: "https://monitoring.us-east-1.amazonaws.com/v1/metrics"
     auth:
       authenticator: bearertokenauth
 service:
@@ -389,7 +389,7 @@ API キーを設定ファイルに直書きしない。`filename` でマウン�
 
 ### Application Signals（APM の中心）
 
-OTLP でトレースを送り、Transaction Search や必要なリソース属性が整っていれば、CloudWatch Application Signals の APM 体験につながります。Application Signals は計装済みアプリから自動的にサービスを検出し、レイテンシ・可用性・エラー率・リクエスト数を収集します。
+Transaction Search を有効にして OTLP で送ったスパンは検索・分析できます。一方、Application Signals のサービスマップやサービス指標を使うには、対応する ADOT SDK または Collector の `awsapplicationsignals` processor による追加処理が必要です。OTLP エンドポイントへ送るだけで自動的に有効になるわけではありません。
 
 - **サービスマップ** — 検出したサービスと依存関係を自動マッピング。依存先のヘルスやデプロイ時刻も見える。
 - **SLO / SLI** — 自動収集される Latency と Availability を SLI として、宣言的に SLO を定義できる。Availability は `(1 - Fault Rate) × 100`（Fault は 5xx）。エラーバジェットの消費が速いとアラートが上がる。
@@ -405,11 +405,7 @@ Application Signals の trace to log correlation を有効にすると、トレ�
 trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 ```
 
-EKS・ECS では追加手順は不要、EC2 では環境変数の追加設定が要ります。メトリクス↔ログの相関は、計装時に `aws.log.group.names` を `OTEL_RESOURCE_ATTRIBUTES` に足すだけで有効になります。
-
-:::message
-**図4（計装した値が CloudWatch 上でどう見えるか）**: サービスマップ＋レイテンシ/エラー率のグラフ＋トレース詳細下部に相関ログが並ぶ画面。第3章で設定した `service.name` がサービス名として、`deployment.environment` が「Hosted In」として表示される点を矢印で示し、計装→可視化の伏線を回収する。
-:::
+トレース ID の MDC 注入やログ収集方法は、言語、ロギングライブラリ、EKS / ECS / EC2 の実行環境で手順が異なります。メトリクスからログへ移動できるようにする場合も、`aws.log.group.names` を付けるだけでなく、対象のロググループ名と実際の送信先が一致していることを確認します。
 
 ## 8. 実機検証メモ：ECS Fargate で3経路を動かしてわかったこと
 
@@ -452,11 +448,13 @@ ADOT エージェントの既定は `OTEL_METRICS_EXPORTER=otlp`（送信先 `lo
 
 > まとめると、経路Cは「トレース＋ログ＋属性エンリッチメント」までは標準イメージで完結しますが、**Application Signals の APM だけは追加のビルド作業（または ADOT Collector 併用）が要る**、というのが実機で得た結論です。比較表の経路C・Application Signals を「○」ではなく「△」に直したのはこのためです。
 
-## 9. 結論：状況別の早見表
+## 9. どの構成を選ぶか
 
 | 軸 | 経路A（直接） | 経路B（Collector 経由） | 経路C（カスタム Collector） |
 | --- | --- | --- | --- |
 | 導入の速さ | ◎ 最速 | ○ | △ |
+| 既存アプリへの初期導入コスト | ○ エージェント追加と送信設定 | △ 左記に加えてCollectorの配置・接続設定 | × 左記に加えてビルド・配布・更新手順の整備 |
+| アプリごとの変更 | △ SigV4・送信先・サンプリングを各アプリに設定 | ○ 送信先をCollectorにそろえやすい | ○ 経路Bと同様（Collector側の検証は増える） |
 | 運用負荷 | ◎ 低い（Collector なし） | △ Collector 運用が要る | △ 自前ビルド＋運用 |
 | インフラ属性エンリッチメント | × | ○ | ○ |
 | サンプリング／フィルタ制御 | △ アプリ側のみ | ◎ Collector 側で柔軟 | ◎ |
@@ -470,12 +468,20 @@ ADOT エージェントの既定は `OTEL_METRICS_EXPORTER=otlp`（送信先 `lo
 - **複数サービスを集約したい / 本番でコスト・ノイズを制御したい** → 経路B。
 - **非 AWS 環境からも送る / 将来 AWS 外のバックエンドへ逃がしたい / 標準に無い部品が要る** → 経路C。
 
-そして現実的なおすすめは、**経路A で始めて、必要になったら B / C に育てる** こと。計装コードは経路に依存しないので、収集・転送レイヤだけを後から差し替えれば移行できます。
+### 既存アプリに入れるときのコストも考える
+
+1サービスだけに試すなら、経路AはCollectorを用意しないぶん早く始められます。ただし、既存アプリごとにADOTエージェントやSDKを追加し、IAM、OTLPエンドポイント、SigV4、サンプリングを設定します。サービス数が増えるほど設定の展開と変更管理が積み上がる点は見落としやすいところでした。
+
+経路Bは、Collectorのデプロイ、可用性、リソース見積もり、アプリからCollectorへの通信経路を最初に用意する必要があります。その代わり、すでにOTLPで計装されているアプリなら、基本的には送信先をCollectorにそろえ、認証や加工をCollector側へ集約できます。既存のCloudWatch AgentやADOT Collectorを運用している環境では、この初期コストを下げられる場合もあります。
+
+経路Cは経路Bの作業に加え、必要なコンポーネントを選び、Collectorをビルド、脆弱性対応、配布、更新する仕組みまで必要です。既存アプリ側の変更量が経路Bより大きいとは限りませんが、プラットフォーム側の導入コストは最も高くなります。
+
+そのため、小さく試すなら経路Aは有力ですが、対象サービスが多い、ログ収集、tail sampling、複数送信先、Application Signalsが最初から要件にある、といった場合は経路Bから始める方が全体の移行コストを抑えられることがあります。経路Cは「非AWS環境だから」ではなく、標準ディストリビューションにないコンポーネントが本当に必要かを確認してから選ぶのがよいと思います。
 
 
 ## 最後に
 
-私のおすすめは「まず経路Aで動かしてみる」ことです。構成に悩んでいるうちは一歩も進めないので、とにかく collector-less で繋いでみると、何がボトルネックになるか・本当に Collector が必要かどうかが見えてきます。計装コードは経路に依存しないので、後から B / C に育てることもできますし（この点は本当に助かります）。
+私自身、3経路を動かしたことで、Collector の有無よりも「どのシグナルを送り、CloudWatch で何を見たいか」を先に決める方が選びやすいと感じました。トレース検索だけなのか、Application Signals まで使うのか、ログ相関やサンプリングをどこで行うのかを書き出してから、上の早見表に当てはめるのがおすすめです。
 
 AWS の OpenTelemetry 対応はまだ進化中なので、今後さらに選択肢が整理されていくんじゃないかなと思います。まずは一度試してみていただければ嬉しいです！
 
