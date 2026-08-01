@@ -215,6 +215,15 @@ java -jar my-app.jar
 
 > ※スパンは `aws/spans` ロググループに、ログは指定した LogGroup に入ります。
 
+デモをデプロイしてリクエストを送った後は、Transaction Search でデモアプリの `service.name` を検索します。トレース ID、HTTP ステータス、所要時間が表示されていれば、Collector を置かない経路Aでもスパンが CloudWatch に取り込まれています。
+
+:::message
+**画像プレースホルダー：経路Aの Transaction Search**
+
+- 予定ファイル：`/images/aws-otel-2026/04_route_a_transaction_search.png`
+- 差し込む画面：Transaction Search の検索結果とトレース詳細
+:::
+
 **経路Aが向くケース**：PoC、小〜中規模、AWS に閉じてよい構成、Collector の運用人員を割きたくないチーム。ECS / EC2 の小規模アプリは経路Aから始めやすいです。
 
 ## 5. 経路B：Collector / Fluent Bit を挟む（CloudWatch Agent / ADOT / upstream Collector）
@@ -411,48 +420,18 @@ trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 
 トレース ID の MDC 注入やログ収集方法は、言語、ロギングライブラリ、EKS / ECS / EC2 の実行環境で手順が異なります。メトリクスからログへ移動できるようにする場合も、`aws.log.group.names` を付けるだけでなく、対象のロググループ名と実際の送信先が一致していることを確認します。
 
+デモでは、トレース詳細とアプリログに同じ `trace_id` / `span_id` が表示され、対象リクエストのログへ移動できれば正常です。次の画像では、経路Bでトレースとログの両方が届き、相関情報が保たれている状態を示します。
+
+:::message
+**画像プレースホルダー：トレースとログの相関**
+
+- 予定ファイル：`/images/aws-otel-2026/05_route_b_trace_log_correlation.png`
+- 差し込む画面：トレース詳細と、そこから参照した関連ログ
+:::
+
 ## 8. 実機検証メモ：ECS Fargate で3経路を動かしてわかったこと
 
 ここまでの内容を確かめるため、**3経路すべてを ECS Fargate 上で `ap-northeast-1` に実際にデプロイ**して検証しました（Java アプリ＋ADOT Java エージェント 2.11.2-aws、DynamoDB を叩く最小ワークロード。経路は CDK の context フラグで切り替え）。ドキュメントだけでは気づきにくい落とし穴がいくつかあったので共有します。
-
-### デプロイ後に CloudWatch で確認する画面
-
-デモをデプロイしてリクエストを送った後、CloudWatch 上で次の状態になっていれば、トレースとログが意図した経路で届いています。以下のプレースホルダーには、読者が自分の環境と見比べられる実際の CloudWatch 画面を差し込みます。
-
-#### 1. Transaction Search にトレースが表示される
-
-:::message
-**画像プレースホルダー**
-
-- 予定ファイル：`/images/aws-otel-2026/04_route_a_transaction_search.png`
-- 差し込む画面：CloudWatch の Transaction Search の検索結果とトレース詳細
-- 正常な状態：デモアプリの `service.name` でスパンを検索でき、トレース ID、HTTP ステータス、所要時間が表示されている
-- この画像で伝えること：経路Aのように Collector を置かない構成でも、OTLP で送ったスパンが CloudWatch に取り込まれていること
-:::
-
-#### 2. トレースから対応するアプリログをたどれる
-
-:::message
-**画像プレースホルダー**
-
-- 予定ファイル：`/images/aws-otel-2026/05_route_b_trace_log_correlation.png`
-- 差し込む画面：CloudWatch のトレース詳細と、そこから参照した関連ログ
-- 正常な状態：トレースとログに同じ `trace_id` / `span_id` が表示され、対象リクエストのログへ移動できる
-- この画像で伝えること：経路Bでトレースとログの両方が届き、相関情報が失われていないこと
-:::
-
-#### 3. Collector で追加した属性がスパンに表示される
-
-:::message
-**画像プレースホルダー**
-
-- 予定ファイル：`/images/aws-otel-2026/06_route_c_enriched_attributes.png`
-- 差し込む画面：CloudWatch のトレース詳細にある属性一覧
-- 正常な状態：経路Cの Collector で付与した `demo.version` / `demo.pattern` がスパンの属性として表示されている
-- この画像で伝えること：カスタム Collector の `attributes` プロセッサを通過し、エンリッチメント後のスパンが届いていること
-:::
-
-> スクリーンショットを用意するときは、AWS アカウント ID、リソース ARN、内部 URL などをマスクし、上記の予定ファイル名で保存してから各プレースホルダーを画像記法へ置き換えます。
 
 ### Transaction Search の有効化＝「送信先を CloudWatch Logs に切り替える」こと
 
@@ -488,6 +467,17 @@ ADOT エージェントの既定は `OTEL_METRICS_EXPORTER=otlp`（送信先 `lo
 - APM は割り切り、トレース（Transaction Search）＋ログで運用し、`OTEL_METRICS_EXPORTER=none` で 404 を止める
 
 一方で、**AWS インフラ属性でのエンリッチメントはカスタム Collector で問題なく効きました**。`attributes` プロセッサで全スパンに独自属性（例：`demo.version` / `demo.pattern`）を確実に付与できることを確認しています。比較表で経路Cが「エンリッチメント ○」なのは実機でもその通りでした。
+
+CloudWatch のトレース詳細で `demo.version` / `demo.pattern` がスパン属性として表示されていれば、経路Cの `attributes` プロセッサを通過したデータが届いています。
+
+:::message
+**画像プレースホルダー：経路Cで追加したスパン属性**
+
+- 予定ファイル：`/images/aws-otel-2026/06_route_c_enriched_attributes.png`
+- 差し込む画面：トレース詳細の属性一覧
+:::
+
+> スクリーンショットを差し込む際は、AWS アカウント ID、リソース ARN、内部 URL などをマスクします。
 
 > まとめると、経路Cは「トレース＋ログ＋属性エンリッチメント」までは標準イメージで完結しますが、**Application Signals の APM だけは追加のビルド作業（または ADOT Collector 併用）が要る**、というのが実機で得た結論です。比較表の経路C・Application Signals を「○」ではなく「△」に直したのはこのためです。
 
