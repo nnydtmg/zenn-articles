@@ -415,41 +415,41 @@ trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 
 ここまでの内容を確かめるため、**3経路すべてを ECS Fargate 上で `ap-northeast-1` に実際にデプロイ**して検証しました（Java アプリ＋ADOT Java エージェント 2.11.2-aws、DynamoDB を叩く最小ワークロード。経路は CDK の context フラグで切り替え）。ドキュメントだけでは気づきにくい落とし穴がいくつかあったので共有します。
 
-### 実際のデモ画面（差し替え用プレースホルダー）
+### デプロイ後に CloudWatch で確認する画面
 
-以下の3枚を、公開前に実環境のスクリーンショットへ差し替えます。経路ごとの差が追いやすいように、画面の役割と確認してほしいポイントを先にそろえています。
+デモをデプロイしてリクエストを送った後、CloudWatch 上で次の状態になっていれば、トレースとログが意図した経路で届いています。以下のプレースホルダーには、読者が自分の環境と見比べられる実際の CloudWatch 画面を差し込みます。
 
-#### デモ画面1：経路A — Transaction Search でスパンを確認
+#### 1. Transaction Search にトレースが表示される
 
 :::message
 **画像プレースホルダー**
 
 - 予定ファイル：`/images/aws-otel-2026/04_route_a_transaction_search.png`
-- 撮影画面：CloudWatch の Transaction Search（検索結果またはトレース詳細）
-- 画面に含めるもの：`service.name`、トレース ID、HTTP ステータス、所要時間
-- 確認ポイント：Collector を置かない構成でも、OTLP で送ったスパンを検索できること
+- 差し込む画面：CloudWatch の Transaction Search の検索結果とトレース詳細
+- 正常な状態：デモアプリの `service.name` でスパンを検索でき、トレース ID、HTTP ステータス、所要時間が表示されている
+- この画像で伝えること：経路Aのように Collector を置かない構成でも、OTLP で送ったスパンが CloudWatch に取り込まれていること
 :::
 
-#### デモ画面2：経路B — トレースとアプリログの相関を確認
+#### 2. トレースから対応するアプリログをたどれる
 
 :::message
 **画像プレースホルダー**
 
 - 予定ファイル：`/images/aws-otel-2026/05_route_b_trace_log_correlation.png`
-- 撮影画面：CloudWatch のトレース詳細と、同じ画面から参照できる関連ログ
-- 画面に含めるもの：同一の `trace_id` / `span_id` がわかるトレースとログ
-- 確認ポイント：Collector 経由で送ったトレースから、対応するアプリログをたどれること
+- 差し込む画面：CloudWatch のトレース詳細と、そこから参照した関連ログ
+- 正常な状態：トレースとログに同じ `trace_id` / `span_id` が表示され、対象リクエストのログへ移動できる
+- この画像で伝えること：経路Bでトレースとログの両方が届き、相関情報が失われていないこと
 :::
 
-#### デモ画面3：経路C — Collector で付与した属性を確認
+#### 3. Collector で追加した属性がスパンに表示される
 
 :::message
 **画像プレースホルダー**
 
 - 予定ファイル：`/images/aws-otel-2026/06_route_c_enriched_attributes.png`
-- 撮影画面：CloudWatch のトレース詳細（属性一覧）
-- 画面に含めるもの：Collector で付与した `demo.version` / `demo.pattern`
-- 確認ポイント：カスタム Collector の `attributes` プロセッサによるエンリッチメントが反映されること
+- 差し込む画面：CloudWatch のトレース詳細にある属性一覧
+- 正常な状態：経路Cの Collector で付与した `demo.version` / `demo.pattern` がスパンの属性として表示されている
+- この画像で伝えること：カスタム Collector の `attributes` プロセッサを通過し、エンリッチメント後のスパンが届いていること
 :::
 
 > スクリーンショットを用意するときは、AWS アカウント ID、リソース ARN、内部 URL などをマスクし、上記の予定ファイル名で保存してから各プレースホルダーを画像記法へ置き換えます。
