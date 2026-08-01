@@ -157,7 +157,9 @@ java -jar my-app.jar
 
 ## 4. 経路A：CloudWatch に直接送る（collector-less / ADOT SDK）
 
-最速で始められる道です。Collector を運用しないぶん、構成要素はアプリと IAM だけ。AWS の公式手順では、この collector-less 構成でも **ADOT SDK** を使います（ピュアな upstream SDK ではなく）。SigV4 認証やエンドポイント向けの最適化が ADOT SDK 側に組み込まれているためです。
+最速で始められる道です。Collector を運用しないぶん、構成要素はアプリと IAM だけです。
+
+AWS 公式の [collector-less 手順](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLP-UsingADOT.html)は、アプリから直接送る方法として ADOT SDK を案内しています。CloudWatch の OTLP エンドポイントへ AWS 認証情報で送る場合は、公式の[認証仕様](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html)にあるとおり **SigV4 署名**が必要なため、本記事のコードサンプルと実機検証も ADOT Java エージェントを使います。ADOT が OTLP の必須条件というわけではなく、upstream SDK でも、トレースは SigV4 対応の送信処理を用意すれば直接送信できます。ログとメトリクスは SigV4 のほか bearer token でも直接送信できます。upstream SDK の標準 OTLP exporter をそのまま使って3シグナルを送るなら、Collector の `sigv4auth` extension で署名する **経路B** が自然です。
 
 ### 始める前の必須チェック
 
@@ -407,6 +409,14 @@ trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 
 トレース ID の MDC 注入やログ収集方法は、言語、ロギングライブラリ、EKS / ECS / EC2 の実行環境で手順が異なります。メトリクスからログへ移動できるようにする場合も、`aws.log.group.names` を付けるだけでなく、対象のロググループ名と実際の送信先が一致していることを確認します。
 
+トレース詳細とアプリログに同じ `trace_id` / `span_id` が表示され、対象リクエストのログへ移動できれば、相関情報が保たれています。
+
+<!--
+TODO: トレース詳細と、そこから参照した関連ログのスクリーンショットを挿入する。
+予定ファイル: /images/aws-otel-2026/05_trace_log_correlation.png
+AWS アカウント ID、リソース ARN、内部 URL などはマスクする。
+-->
+
 ## 8. 実機検証メモ：ECS Fargate で3経路を動かしてわかったこと
 
 ここまでの内容を確かめるため、**3経路すべてを ECS Fargate 上で `ap-northeast-1` に実際にデプロイ**して検証しました（Java アプリ＋ADOT Java エージェント 2.11.2-aws、DynamoDB を叩く最小ワークロード。経路は CDK の context フラグで切り替え）。ドキュメントだけでは気づきにくい落とし穴がいくつかあったので共有します。
@@ -423,6 +433,14 @@ aws xray get-trace-segment-destination
 ```
 
 X-Ray Insights の有効化とは別物です。ここを `CloudWatchLogs` にしていないと、OTLP で送ったスパンは `aws/spans` に取り込まれず、コンソールにも CLI にも出てきません（「送れているはずなのに見えない」の典型原因）。
+
+デモをデプロイしてリクエストを送った後、Transaction Search でデモアプリの `service.name` を検索します。トレース ID、HTTP ステータス、所要時間が表示されていれば、スパンは CloudWatch に取り込まれています。
+
+<!--
+TODO: Transaction Search の検索結果とトレース詳細のスクリーンショットを挿入する。
+予定ファイル: /images/aws-otel-2026/04_transaction_search.png
+AWS アカウント ID、リソース ARN、内部 URL などはマスクする。
+-->
 
 ### collector-less はメトリクスを明示的に止める（`OTEL_METRICS_EXPORTER=none`）
 
@@ -445,6 +463,14 @@ ADOT エージェントの既定は `OTEL_METRICS_EXPORTER=otlp`（送信先 `lo
 - APM は割り切り、トレース（Transaction Search）＋ログで運用し、`OTEL_METRICS_EXPORTER=none` で 404 を止める
 
 一方で、**AWS インフラ属性でのエンリッチメントはカスタム Collector で問題なく効きました**。`attributes` プロセッサで全スパンに独自属性（例：`demo.version` / `demo.pattern`）を確実に付与できることを確認しています。比較表で経路Cが「エンリッチメント ○」なのは実機でもその通りでした。
+
+CloudWatch のトレース詳細で `demo.version` / `demo.pattern` がスパン属性として表示されていれば、経路Cの `attributes` プロセッサを通過したデータが届いています。
+
+<!--
+TODO: トレース詳細の属性一覧のスクリーンショットを挿入する。
+予定ファイル: /images/aws-otel-2026/06_route_c_enriched_attributes.png
+AWS アカウント ID、リソース ARN、内部 URL などはマスクする。
+-->
 
 > まとめると、経路Cは「トレース＋ログ＋属性エンリッチメント」までは標準イメージで完結しますが、**Application Signals の APM だけは追加のビルド作業（または ADOT Collector 併用）が要る**、というのが実機で得た結論です。比較表の経路C・Application Signals を「○」ではなく「△」に直したのはこのためです。
 
