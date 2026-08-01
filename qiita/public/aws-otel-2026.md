@@ -1,16 +1,19 @@
 ---
 title: 2026年版・AWSでOpenTelemetryを始めるなら—CloudWatch OTLPサポートを起点に考えてみる
-private: false
 tags:
-  - aws
+  - AWS
   - opentelemetry
-  - cloudwatch
+  - CloudWatch
   - observability
   - otel
-updated_at: '2026-08-01T02:50:54.074Z'
-id: null
+private: false
+updated_at: '2026-08-01T11:51:01+09:00'
+id: 2bf3d733a6318b758a5c
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 :::note
