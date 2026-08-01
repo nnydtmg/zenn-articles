@@ -57,9 +57,7 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図です。再編集用の [draw.io ソース](/images/aws-otel-2026/01_decision_map.drawio) も置いています。
-
-![図1：今回比較した構成](/images/aws-otel-2026/01_decision_map.drawio.svg)
+![AWSの構成イメージ](https://static.zenn.studio/user-upload/7bdb74163783-20260801.png)
 
 ### 構成ごとの機能差
 
@@ -189,9 +187,7 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図です。再編集用の [draw.io ソース](/images/aws-otel-2026/02_route_a.drawio) も置いています。
-
-![図2：経路Aの最小構成](/images/aws-otel-2026/02_route_a.drawio.svg)
+![経路Aのイメージ](https://static.zenn.studio/user-upload/4b215c8b7619-20260801.png)
 
 **コードサンプル②（経路A 環境変数フルセット・Java）**：トレース＋ログを us-east-1 へ直接送る起動例。
 
@@ -214,6 +210,12 @@ java -jar my-app.jar
 > ※スパンは `aws/spans` ロググループに、ログは指定した LogGroup に入ります。
 
 **経路Aが向くケース**：PoC、小〜中規模、AWS に閉じてよい構成、Collector の運用人員を割きたくないチーム。ECS / EC2 の小規模アプリは経路Aから始めやすいです。
+
+![アプリケーションマップ](https://static.zenn.studio/user-upload/8dbd9df1c408-20260801.png)
+
+![アプリケーションシグナルでの依存関係](https://static.zenn.studio/user-upload/cd722e2ae707-20260801.png)
+
+![トランザクション検索でのトランザクション一覧](https://static.zenn.studio/user-upload/d7a67ffc8d6b-20260801.png)
 
 ## 5. 経路B：Collector / Fluent Bit を挟む（CloudWatch Agent / ADOT / upstream Collector）
 
@@ -255,9 +257,7 @@ flowchart LR
     end
 ```
 
-> AWS アイコン付きの構成図です。再編集用の [draw.io ソース](/images/aws-otel-2026/03_route_b.drawio) も置いています。
-
-![図3：経路Bの集約・加工構成](/images/aws-otel-2026/03_route_b.drawio.svg)
+![経路Bの構成イメージ](https://static.zenn.studio/user-upload/0f3333d37350-20260801.png)
 
 **コードサンプル③（Collector YAML、logs + traces を us-east-1 へ）**：
 
@@ -306,6 +306,14 @@ service:
 補足：Application Signals で確実に100%のスパンを記録したい重要アプリでは、SDK 側のサンプラーを `always_on` にしておくことが公式に推奨されています（コストとのトレードオフに注意）。
 
 **経路Bが向くケース**：複数サービスを集約したい、本番でコスト・ノイズを制御したい、Prometheus 資産を活かしたい、AWS サポート付きにしたいチーム。EKS / 複数サービスなら経路Bが自然です。
+
+![アプリケーションマップ](https://static.zenn.studio/user-upload/b0ac03ccf7e7-20260801.png)
+
+![アプリケーションシグナルでの依存関係](https://static.zenn.studio/user-upload/6c46d79979d6-20260801.png)
+
+![トランザクション検索でのトランザクション一覧](https://static.zenn.studio/user-upload/4b89822d4fbf-20260801.png)
+
+![トレースマップ](https://static.zenn.studio/user-upload/658d62c0393a-20260801.png)
 
 ### Fluent Bit はログ収集の現実解
 
@@ -411,15 +419,9 @@ trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 
 トレース詳細とアプリログに同じ `trace_id` / `span_id` が表示され、対象リクエストのログへ移動できれば、相関情報が保たれています。
 
-<!--
-TODO: トレース詳細と、そこから参照した関連ログのスクリーンショットを挿入する。
-予定ファイル: /images/aws-otel-2026/05_trace_log_correlation.png
-AWS アカウント ID、リソース ARN、内部 URL などはマスクする。
--->
+## 8. 実機検証メモ：3経路を動かしてわかったこと
 
-## 8. 実機検証メモ：ECS Fargate で3経路を動かしてわかったこと
-
-ここまでの内容を確かめるため、**3経路すべてを ECS Fargate 上で `ap-northeast-1` に実際にデプロイ**して検証しました（Java アプリ＋ADOT Java エージェント 2.11.2-aws、DynamoDB を叩く最小ワークロード。経路は CDK の context フラグで切り替え）。ドキュメントだけでは気づきにくい落とし穴がいくつかあったので共有します。
+ここまでの内容を確かめるため、3経路すべてを実際にデプロイ**して検証しました（Java アプリ＋ADOT Java エージェント 2.11.2-aws、DynamoDB を叩く最小ワークロード。経路は CDK の context フラグで切り替え）。ドキュメントだけでは気づきにくい落とし穴がいくつかあったので共有します。
 
 ### Transaction Search の有効化＝「送信先を CloudWatch Logs に切り替える」こと
 
@@ -436,11 +438,22 @@ X-Ray Insights の有効化とは別物です。ここを `CloudWatchLogs` に�
 
 デモをデプロイしてリクエストを送った後、Transaction Search でデモアプリの `service.name` を検索します。トレース ID、HTTP ステータス、所要時間が表示されていれば、スパンは CloudWatch に取り込まれています。
 
-<!--
-TODO: Transaction Search の検索結果とトレース詳細のスクリーンショットを挿入する。
-予定ファイル: /images/aws-otel-2026/04_transaction_search.png
-AWS アカウント ID、リソース ARN、内部 URL などはマスクする。
--->
+検索は Transaction Search の UI から `service.name` を指定してもいいですが、スパンは `aws/spans` ロググループに入るので、CloudWatch Logs Insights でも同じことを確認できます。
+
+```
+fields @timestamp,
+       resource.attributes.service.name as service,
+       traceId,
+       attributes.http.response.status_code as status,
+       durationNano / 1000000 as duration_ms
+| filter resource.attributes.service.name = 'my-java-svc'
+| sort @timestamp desc
+| limit 50
+```
+
+エラーだけ拾いたいときは `| filter attributes.http.response.status_code >= 400` を足します。ただし `aws/spans` のフィールド名は OTel の属性がドット区切りで平坦化されて入っており、SDK・言語・セマンティック規約のバージョンで `http.response.status_code` と `http.status_code` のようにブレます。まず `fields @message | sort @timestamp desc | limit 5` で実データのキー名を確認してから、上のクエリのフィールド名を合わせるのが確実でした。
+
+![トランザクション検索例](https://static.zenn.studio/user-upload/63301ace65d2-20260801.png)
 
 ### collector-less はメトリクスを明示的に止める（`OTEL_METRICS_EXPORTER=none`）
 
@@ -465,12 +478,6 @@ ADOT エージェントの既定は `OTEL_METRICS_EXPORTER=otlp`（送信先 `lo
 一方で、**AWS インフラ属性でのエンリッチメントはカスタム Collector で問題なく効きました**。`attributes` プロセッサで全スパンに独自属性（例：`demo.version` / `demo.pattern`）を確実に付与できることを確認しています。比較表で経路Cが「エンリッチメント ○」なのは実機でもその通りでした。
 
 CloudWatch のトレース詳細で `demo.version` / `demo.pattern` がスパン属性として表示されていれば、経路Cの `attributes` プロセッサを通過したデータが届いています。
-
-<!--
-TODO: トレース詳細の属性一覧のスクリーンショットを挿入する。
-予定ファイル: /images/aws-otel-2026/06_route_c_enriched_attributes.png
-AWS アカウント ID、リソース ARN、内部 URL などはマスクする。
--->
 
 > まとめると、経路Cは「トレース＋ログ＋属性エンリッチメント」までは標準イメージで完結しますが、**Application Signals の APM だけは追加のビルド作業（または ADOT Collector 併用）が要る**、というのが実機で得た結論です。比較表の経路C・Application Signals を「○」ではなく「△」に直したのはこのためです。
 
