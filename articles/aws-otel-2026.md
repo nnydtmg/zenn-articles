@@ -57,8 +57,6 @@ flowchart LR
     end
 ```
 
-![AWSの構成イメージ](https://static.zenn.studio/user-upload/7bdb74163783-20260801.png)
-
 ### 構成ごとの機能差
 
 | 機能 | 経路A（collector-less / ADOT SDK） | 経路B（Collector 経由） | 経路C（Custom Collector） |
@@ -187,8 +185,6 @@ flowchart LR
     end
 ```
 
-![経路Aのイメージ](https://static.zenn.studio/user-upload/4b215c8b7619-20260801.png)
-
 **コードサンプル②（経路A 環境変数フルセット・Java）**：トレース＋ログを us-east-1 へ直接送る起動例。
 
 ```bash
@@ -256,8 +252,6 @@ flowchart LR
         MON
     end
 ```
-
-![経路Bの構成イメージ](https://static.zenn.studio/user-upload/0f3333d37350-20260801.png)
 
 **コードサンプル③（Collector YAML、logs + traces を us-east-1 へ）**：
 
