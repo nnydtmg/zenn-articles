@@ -159,9 +159,9 @@ java -jar my-app.jar
 
 最速で始められる道です。Collector を運用しないぶん、構成要素はアプリと IAM だけです。
 
-ここで ADOT SDK を使うのは、今回の検証だけの都合ではありません。CloudWatch の OTLP エンドポイントへ AWS 認証情報で直接送るには、リクエストへの **SigV4 署名**が必要です。upstream OpenTelemetry SDK の標準 OTLP exporter は、この署名をそのままでは行わないため、エンドポイントを差し替えるだけでは同じ構成になりません。AWS が案内する collector-less の手順では、SigV4 署名に対応した **ADOT SDK** を使用します。本記事のコードサンプルと実機検証も ADOT Java エージェントを使っています。
+ここで ADOT SDK を使うのは、今回の検証だけの都合ではありません。AWS 公式の [collector-less 手順](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLP-UsingADOT.html)が、アプリから直接送る方法として ADOT SDK を案内しているためです。また、CloudWatch の OTLP エンドポイントへ AWS 認証情報で送るリクエストには、公式の[認証仕様](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-OTLPEndpoint.html)にあるとおり **SigV4 署名**が必要です。本記事のコードサンプルと実機検証も、この公式手順に合わせて ADOT Java エージェントを使っています。
 
-OpenTelemetry の計装 API や OTLP のデータ形式が別物になるわけではないため、独自に SigV4 対応の exporter／送信処理を実装すれば upstream SDK から直接送ること自体は可能です。ただし、これは AWS 公式の collector-less 手順から外れ、認証処理も自分で保守する構成です。upstream SDK をそのまま使いたい場合は、アプリから Collector へ通常の OTLP で送り、Collector の `sigv4auth` extension で署名する **経路B** の方が素直です。
+ただし、これは「ADOT 以外のデータをエンドポイントが拒否する」「ADOT が唯一の実装である」という意味ではありません。公式ドキュメントで確認できるのは、collector-less の案内が ADOT SDK を対象にしていることと、エンドポイントが SigV4 署名を要求することです。OpenTelemetry の計装 API や OTLP のデータ形式は共通なので、upstream SDK でも SigV4 署名に対応する exporter／送信処理を用意すれば直接送信できますが、その構成は上記の公式手順の対象外です。upstream SDK の標準 OTLP exporter をそのまま使いたい場合は、アプリから Collector へ通常の OTLP で送り、Collector の `sigv4auth` extension で署名する **経路B** の方が素直です。
 
 ### 始める前の必須チェック
 
