@@ -157,7 +157,11 @@ java -jar my-app.jar
 
 ## 4. 経路A：CloudWatch に直接送る（collector-less / ADOT SDK）
 
-最速で始められる道です。Collector を運用しないぶん、構成要素はアプリと IAM だけ。AWS の公式手順では、この collector-less 構成でも **ADOT SDK** を使います（ピュアな upstream SDK ではなく）。SigV4 認証やエンドポイント向けの最適化が ADOT SDK 側に組み込まれているためです。
+最速で始められる道です。Collector を運用しないぶん、構成要素はアプリと IAM だけです。
+
+ここで ADOT SDK を使うのは、今回の検証だけの都合ではありません。CloudWatch の OTLP エンドポイントへ AWS 認証情報で直接送るには、リクエストへの **SigV4 署名**が必要です。upstream OpenTelemetry SDK の標準 OTLP exporter は、この署名をそのままでは行わないため、エンドポイントを差し替えるだけでは同じ構成になりません。AWS が案内する collector-less の手順では、SigV4 署名に対応した **ADOT SDK** を使用します。本記事のコードサンプルと実機検証も ADOT Java エージェントを使っています。
+
+OpenTelemetry の計装 API や OTLP のデータ形式が別物になるわけではないため、独自に SigV4 対応の exporter／送信処理を実装すれば upstream SDK から直接送ること自体は可能です。ただし、これは AWS 公式の collector-less 手順から外れ、認証処理も自分で保守する構成です。upstream SDK をそのまま使いたい場合は、アプリから Collector へ通常の OTLP で送り、Collector の `sigv4auth` extension で署名する **経路B** の方が素直です。
 
 ### 始める前の必須チェック
 
@@ -410,6 +414,45 @@ trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
 ## 8. 実機検証メモ：ECS Fargate で3経路を動かしてわかったこと
 
 ここまでの内容を確かめるため、**3経路すべてを ECS Fargate 上で `ap-northeast-1` に実際にデプロイ**して検証しました（Java アプリ＋ADOT Java エージェント 2.11.2-aws、DynamoDB を叩く最小ワークロード。経路は CDK の context フラグで切り替え）。ドキュメントだけでは気づきにくい落とし穴がいくつかあったので共有します。
+
+### 実際のデモ画面（差し替え用プレースホルダー）
+
+以下の3枚を、公開前に実環境のスクリーンショットへ差し替えます。経路ごとの差が追いやすいように、画面の役割と確認してほしいポイントを先にそろえています。
+
+#### デモ画面1：経路A — Transaction Search でスパンを確認
+
+:::message
+**画像プレースホルダー**
+
+- 予定ファイル：`/images/aws-otel-2026/04_route_a_transaction_search.png`
+- 撮影画面：CloudWatch の Transaction Search（検索結果またはトレース詳細）
+- 画面に含めるもの：`service.name`、トレース ID、HTTP ステータス、所要時間
+- 確認ポイント：Collector を置かない構成でも、OTLP で送ったスパンを検索できること
+:::
+
+#### デモ画面2：経路B — トレースとアプリログの相関を確認
+
+:::message
+**画像プレースホルダー**
+
+- 予定ファイル：`/images/aws-otel-2026/05_route_b_trace_log_correlation.png`
+- 撮影画面：CloudWatch のトレース詳細と、同じ画面から参照できる関連ログ
+- 画面に含めるもの：同一の `trace_id` / `span_id` がわかるトレースとログ
+- 確認ポイント：Collector 経由で送ったトレースから、対応するアプリログをたどれること
+:::
+
+#### デモ画面3：経路C — Collector で付与した属性を確認
+
+:::message
+**画像プレースホルダー**
+
+- 予定ファイル：`/images/aws-otel-2026/06_route_c_enriched_attributes.png`
+- 撮影画面：CloudWatch のトレース詳細（属性一覧）
+- 画面に含めるもの：Collector で付与した `demo.version` / `demo.pattern`
+- 確認ポイント：カスタム Collector の `attributes` プロセッサによるエンリッチメントが反映されること
+:::
+
+> スクリーンショットを用意するときは、AWS アカウント ID、リソース ARN、内部 URL などをマスクし、上記の予定ファイル名で保存してから各プレースホルダーを画像記法へ置き換えます。
 
 ### Transaction Search の有効化＝「送信先を CloudWatch Logs に切り替える」こと
 
