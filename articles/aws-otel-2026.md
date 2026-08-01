@@ -3,7 +3,7 @@ title: "2026年版・AWSでOpenTelemetryを始めるなら—CloudWatch OTLPサ�
 emoji: "🔭"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws", "opentelemetry", "cloudwatch", "observability", "otel"]
-published: false
+published: true
 ---
 
 :::message
