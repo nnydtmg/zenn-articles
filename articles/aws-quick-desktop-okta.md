@@ -24,7 +24,7 @@ published: false
 先に要点だけ書いておきます。ここで分かった方は読み飛ばしてください！
 
 :::message
-1. Quick 側の設定は**「拡張機能アクセス」と「拡張機能」の2つ**を作る。片方だけだとサインインできない
+1. Quick 側の設定は **「拡張機能アクセス」と「拡張機能」の2つ** を作る。片方だけだとサインインできない
 2. **Trusted Token Issuer（TTI）の作成は現在の手順には登場しない**。管理画面にその入力欄がそもそも無い
 3. Okta 側は**どの認可サーバーを使うかで難易度が変わる**。`default`（カスタム認可サーバー）を選ぶならアクセスポリシーの追加が必須
 :::
@@ -114,11 +114,11 @@ aws sso-admin create-trusted-token-issuer \
 `--region` は **IAM Identity Center インスタンスがあるリージョン**を指定してください。私はここを勘違いして一度やり直しました。`aws sso-admin list-instances` で確認できます。
 :::
 
-ところが、いざ Quick の管理画面を開いたら**「信頼できるトークン発行者 Arn」も「Aud 請求」も項目として存在しませんでした**。入力するのは Issuer URL とエンドポイント3種、そして Client ID だけです。
+ところが、いざ Quick の管理画面を開いたら **「信頼できるトークン発行者 Arn」も「Aud 請求」も項目として存在しませんでした**。入力するのは Issuer URL とエンドポイント3種、そして Client ID だけです。
 
 改めて[現行の公式手順](https://docs.aws.amazon.com/quick/latest/userguide/desktop-enterprise-okta.html)を確認したところ、TTI の作成手順はどこにも出てきませんでした。おそらく仕様が変わったのだと思います。
 
-せっかくなので TTI が何者なのかだけ書いておくと、これは IAM Identity Center の**信頼された ID 伝播（Trusted Identity Propagation）**の部品です。外部 IdP が発行した JWT の中のどのクレームを、IAM Identity Center 上のどの属性と突き合わせるか、というルールを IAM Identity Center 側に持たせるための登録になります。上のコマンドで言えば、`ClaimAttributePath: email` と `IdentityStoreAttributePath: emails.value` の対応がそれですね。
+せっかくなので TTI が何者なのかだけ書いておくと、これは IAM Identity Center の **信頼された ID 伝播（Trusted Identity Propagation）**の部品です。外部 IdP が発行した JWT の中のどのクレームを、IAM Identity Center 上のどの属性と突き合わせるか、というルールを IAM Identity Center 側に持たせるための登録になります。上のコマンドで言えば、`ClaimAttributePath: email` と `IdentityStoreAttributePath: emails.value` の対応がそれですね。
 
 https://aws.amazon.com/blogs/security/simplify-workforce-identity-management-using-iam-identity-center-and-trusted-token-issuers/
 
@@ -161,6 +161,10 @@ Amazon Q Business などでは今も現役の仕組みです。一方 Quick on D
 最後の項目が地味に重要です。拡張機能アクセスの管理には IAM 管理者権限が必要で、[公式ドキュメント](https://docs.aws.amazon.com/ja_jp/quick/latest/userguide/extension-roles-overview.html)にも次のように書かれています。
 
 > すべての管理者には拡張機能リンクが表示されますが、IAM 認証情報でサインインしていない場合は、拡張機能アクセスを管理するために適切な IAM アクセス許可でサインインする必要があります。
+
+:::message
+以降のスクリーンショットで表示されるクライアントIDなどはすでに削除済みのものです。
+:::
 
 ## Okta で OIDC ネイティブアプリを作成する
 Okta の管理コンソールで `Applications` → `Create App Integration` から作成します。設定値はこちらです。
