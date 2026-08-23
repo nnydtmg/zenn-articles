@@ -1,16 +1,19 @@
 ---
 title: Amazon Quick on Desktop を Okta のエンタープライズSSOで使う
-private: false
 tags:
   - AWS
   - AmazonQuick
-  - Okta
+  - okta
   - OIDC
   - IAMIdentityCenter
-updated_at: '2026-08-23T01:22:52.562Z'
-id: null
+private: false
+updated_at: '2026-08-23T10:23:01+09:00'
+id: 3d1996cb1e291402d7a3
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 # はじめに
 みなさんは、`Amazon Quick on Desktop` をもう触られましたか？
