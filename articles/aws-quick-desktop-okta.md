@@ -3,7 +3,7 @@ title: "Amazon Quick on Desktop を Okta のエンタープライズSSOで使う
 emoji: "🔐"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["AWS","AmazonQuick","Okta","OIDC","IAMIdentityCenter"]
-published: false
+published: true
 ---
 # はじめに
 みなさんは、`Amazon Quick on Desktop` をもう触られましたか？
