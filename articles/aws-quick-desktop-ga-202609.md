@@ -3,7 +3,7 @@ title: "Amazon Quick のデスクトップアプリがGAしました！同時に
 emoji: "🖥️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","amazonquick","quicksuite","生成ai","aiエージェント"]
-published: false
+published: true
 ---
 # はじめに
 みなさん、`Amazon Quick` はもう触られていますか？
