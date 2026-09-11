@@ -1,16 +1,19 @@
 ---
 title: Amazon Quick のデスクトップアプリがGAしました！同時に来た2つのアップデートも合わせて紹介します
-private: false
 tags:
-  - aws
-  - amazonquick
-  - quicksuite
-  - 生成ai
-  - aiエージェント
-updated_at: '2026-09-11T14:07:15.379Z'
-id: null
+  - AWS
+  - AmazonQuick
+  - QuickSuite
+  - 生成AI
+  - AIエージェント
+private: false
+updated_at: '2026-09-11T23:07:25+09:00'
+id: 5011610ffcd1eb6710c5
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 # はじめに
 みなさん、`Amazon Quick` はもう触られていますか？
