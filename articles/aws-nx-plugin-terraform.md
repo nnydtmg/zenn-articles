@@ -3,7 +3,7 @@ title: "Nx Plugin for AWS を Terraform で使ってみた 〜インフラ寄り
 emoji: "🧩"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["aws","terraform","nx","typescript","iac"]
-published: false
+published: true
 ---
 # はじめに
 みなさん、`Nx` って触ったことありますか？
@@ -910,9 +910,8 @@ resource "aws_lambda_event_source_mapping" "registrations" {
 面白いことに、**同じファイルの他の箇所はすでに `.region` に直っていて、一部だけ取り残されている**状態でした。バージョンが上がれば直ると思いますが、`validate` を通したときに警告が出ても慌てなくて大丈夫です。
 
 # 最後に
-Terraform で Nx Plugin for AWS を使ってみて、**「Terraform は一級市民として扱われている」**というのが率直な感想です。
-
-一部のジェネレータだけ対応、みたいな中途半端な状態を予想していたのですが、今回使った範囲では一貫して Terraform モジュールが出てきましたし、`plan` / `apply` / `validate` / `test` / `checkov` が Nx のターゲットとして揃っているので、Terraform 側の開発体験も素直に良かったです。
+Terraform で Nx Plugin for AWS を使ってみると、Terraformに対しても
+、`plan` / `apply` / `validate` / `test` / `checkov` が Nx のターゲットとして揃っているので、Terraform 側の開発体験も素直に良かったです。
 
 そして何より、**アプリケーションのコード変更が Terraform の再検証に繋がる**という体験は、Terraform 単体では得られないものでした。モノレポでアプリとインフラを一緒に持っている（あるいはこれから持ちたい）チームには、かなり刺さるんじゃないかと思っています。
 
