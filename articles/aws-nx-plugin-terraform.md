@@ -116,7 +116,7 @@ Nx Plugin for AWS には `terraform#project` というジェネレータがあ�
 
 実際に `pnpm nx graph` を叩くと、こんなグラフが出てきます。
 
-![Nx のプロジェクトグラフ（ワークスペース全体）](/images/aws-nx-plugin-terraform/01-nx-graph-projects.png)
+![Nx のプロジェクトグラフ（ワークスペース全体）](https://static.zenn.studio/user-upload/613a5d187aba-20260913.png)
 *`pnpm nx graph` の Projects タブ。TypeScript のプロジェクトも Terraform のプロジェクトも同じグラフに載る*
 
 右上にいる `infra`（Terraform のルートモジュール）と `terraform` / `ops-alarms` が、`domain` や `organizer-api` と**同じ一枚のグラフに並んでいる**のが分かるかと思います。
@@ -532,7 +532,7 @@ infra -> terraform, ops-alarms
 
 `infra` が依存しているのは、vendoring された `terraform`（生成モジュール置き場）と、自作の `ops-alarms` の**2つだけ**でした。グラフ上で `infra` に絞ると、もっとはっきりします。
 
-![infra のプロジェクト依存だけを表示したところ](/images/aws-nx-plugin-terraform/02-nx-graph-infra-deps.png)
+![infra のプロジェクト依存だけを表示したところ](https://static.zenn.studio/user-upload/a9e67b0b0672-20260913.png)
 *`./packages (3 / 9)` — 9 プロジェクトのうち、infra に繋がっているのは terraform と ops-alarms だけ*
 
 **`portal` や `organizer-api` への矢印がありません。** これは図の省略ではなく、Nx のプロジェクトグラフが本当にそうなっています。
@@ -550,7 +550,7 @@ pnpm nx run @nx-plugin-demo/infra:apply --graph=stdout
 
 `stdout` の代わりにファイル名を渡すとブラウザで見られるので、そちらを貼るとこんな形です。
 
-![nx apply infra のタスクグラフ](/images/aws-nx-plugin-terraform/03-nx-graph-tasks-apply.png)
+![nx apply infra のタスクグラフ](https://static.zenn.studio/user-upload/94b404c2bf6f-20260913.png)
 *Tasks タブで `apply` を選んだところ。最上段の `infra:apply:dev` から `domain:compile` まで1本に繋がっている*
 
 JSON のままだと読みにくいので、40行ほどの整形スクリプトを書いてツリーにしてみました。**28タスク**ありました。
