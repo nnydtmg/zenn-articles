@@ -33,8 +33,10 @@ https://aws.amazon.com/about-aws/whats-new/2026/09/nx-plugin-for-aws/
 1. Nx Plugin for AWS 1.0 のリリース紹介
 2. そもそも Nx とは何なのか（インフラ寄りの人向け）
 3. Terraform で使うにはどうするのか
-4. 実際に使ってみて感じたメリット
-5. ハマったところ・注意点
+4. デプロイしてみる
+5. 更新したときに Nx はどこまで差分を見ているのか
+6. 実際に使ってみて感じたメリット
+7. ハマったところ・注意点
 
 # 1. Nx Plugin for AWS 1.0 とは
 まずはリリースの話からです。
@@ -110,9 +112,16 @@ Nx Plugin for AWS には `terraform#project` というジェネレータがあ�
 - → それを使う Lambda のバンドルが変わる
 - → そのバンドルを zip 化してデプロイする Terraform の `plan` をやり直すべき
 
-という判断を、**Nx が依存グラフから自動でやってくれる**ということです。これが今回一番「おっ」と思ったところでした。
+という連鎖を、**Nx が自分で辿ってくれる**ということです。これが今回一番「おっ」と思ったところでした。
 
-<!-- TODO: `pnpm nx graph` の依存グラフ画面のスクリーンショット -->
+実際に `pnpm nx graph` を叩くと、こんなグラフが出てきます。
+
+![Nx のプロジェクトグラフ（ワークスペース全体）](https://static.zenn.studio/user-upload/613a5d187aba-20260913.png)
+*`pnpm nx graph` の Projects タブ。TypeScript のプロジェクトも Terraform のプロジェクトも同じグラフに載る*
+
+右上にいる `infra`（Terraform のルートモジュール）と `terraform` / `ops-alarms` が、`domain` や `organizer-api` と**同じ一枚のグラフに並んでいる**のが分かるかと思います。
+
+ただし、この図をよく見ると `infra` から出ている矢印は2本しかありません。**「アプリを変えたら Terraform の plan をやり直す」という繋がりが、実はこのグラフには載っていない**んですね。ここは私も実際に測ってみるまで勘違いしていたので、5章でじっくり書きます。
 
 # 3. Terraform で使うには
 ここから実際の手順です。
@@ -486,22 +495,267 @@ pnpm nx bootstrap-destroy infra # tfstate バケットの削除（destroy 後に
 検証用アカウントで試すときは、ここを知らないと「消えない」と焦ると思うので、先に書いておきます。
 :::
 
-# 5. 実際に使ってみて感じたメリット
+# 5. 更新したときに Nx はどこまで差分を見ているのか
+ここからは「作ったあと」の話です。
+
+初回のデプロイが終わって、コードを直して `pnpm nx apply infra` を打ち直したとき、**どこまでがスキップされて、どこから先が AWS に伝わるのか**。ここが Nx を使う一番の旨味だと思うので、実際に手を動かして測ってみました。
+
+:::message
+この節の数値は `Nx 23.2.0` / `Node 22.22.2` / `pnpm 10.33.0` のコンテナ環境での実測値です。ここで使うコマンドは**タスクを実行せずにグラフを出力するものと、ビルドまで**なので、AWS の認証情報は不要です（`terraform plan` / `apply` は動かしていません）。
+:::
+
+## 5-1. 依存グラフを CUI で確認する
+2章で貼った `pnpm nx graph` のグラフですが、**同じ情報はターミナルからも取れます**。`--print` を付けると JSON がそのまま標準出力に出るので、`jq` で整形するとこうなります。
+
+```sh
+$ pnpm nx graph --print \
+    | jq -r '.graph.dependencies | to_entries[]
+             | select(.value | length > 0)
+             | "\(.key) -> \(.value | map(.target) | join(", "))"' \
+    | sed 's|@nx-plugin-demo/||g'
+
+organizer-api -> domain, event-store
+attendee-api -> domain, event-store
+event-store -> domain
+workers -> domain, event-store
+portal -> attendee-api, common-shadcn, organizer-api, domain
+infra -> terraform, ops-alarms
+```
+
+ブラウザを開けない CI や隔離環境でも依存が確認できるので、これはかなり重宝しました。
+
+さて、ここで**最後の行**です。
+
+```
+infra -> terraform, ops-alarms
+```
+
+`infra` が依存しているのは、vendoring された `terraform`（生成モジュール置き場）と、自作の `ops-alarms` の**2つだけ**でした。グラフ上で `infra` に絞ると、もっとはっきりします。
+
+![infra のプロジェクト依存だけを表示したところ](https://static.zenn.studio/user-upload/a9e67b0b0672-20260913.png)
+*`./packages (3 / 9)` — 9 プロジェクトのうち、infra に繋がっているのは terraform と ops-alarms だけ*
+
+**`portal` や `organizer-api` への矢印がありません。** これは図の省略ではなく、Nx のプロジェクトグラフが本当にそうなっています。
+
+理由は 3-4 で書いたルートモジュールの中身を見ると分かります。`packages/infra/src/main.tf` は確かに `module "portal"` を呼んでいますが、その `source` は `../../common/terraform/src/app/static-websites/portal` であって、**`packages/portal`（React のソース）ではない**んですね。Terraform から見た依存先は、あくまでジェネレータが vendoring した TF モジュールです。
+
+「じゃあ Lambda のバンドルやフロントの成果物は、いつ作られるんだ？」となりますよね。私もなりました。
+
+## 5-2. 答えはタスクグラフのほうにある
+プロジェクトの依存とは別に、Nx には**ターゲット単位の依存（タスクグラフ）**があります。`--graph` を付けると、こちらも実行せずに出力できます。
+
+```sh
+pnpm nx run @nx-plugin-demo/infra:apply --graph=stdout
+```
+
+`stdout` の代わりにファイル名を渡すとブラウザで見られるので、そちらを貼るとこんな形です。
+
+![nx apply infra のタスクグラフ](https://static.zenn.studio/user-upload/94b404c2bf6f-20260913.png)
+*Tasks タブで `apply` を選んだところ。最上段の `infra:apply:dev` から `domain:compile` まで1本に繋がっている*
+
+JSON のままだと読みにくいので、40行ほどの整形スクリプトを書いてツリーにしてみました。**28タスク**ありました。
+
+```text
+infra:apply:dev
+└─ infra:plan:dev
+   ├─ infra:init:dev
+   │  ├─ terraform:init:dev
+   │  └─ ops-alarms:init:dev
+   ├─ infra:validate
+   ├─ terraform:validate
+   ├─ ops-alarms:validate
+   └─ infra:assemble
+      └─ terraform:assemble
+         ├─ event-store:assemble
+         │  └─ event-store:compile
+         │     └─ domain:compile
+         ├─ organizer-api:assemble
+         │  ├─ organizer-api:compile
+         │  │  ├─ domain:compile  ↩
+         │  │  └─ event-store:compile  ↩
+         │  ├─ organizer-api:bundle
+         │  └─ organizer-api:operations
+         ├─ attendee-api:assemble
+         │  └─ （同上）
+         ├─ portal:assemble
+         │  ├─ portal:compile
+         │  └─ portal:bundle
+         └─ workers:assemble
+            ├─ workers:compile
+            └─ workers:bundle
+
+28 tasks  (↩ = 既出のサブツリー)
+```
+
+要になっているのが `@nx-plugin-demo/terraform:assemble` です。これは**何も実行しない `nx:noop`** で、中身はアプリ側の `assemble` を列挙しているだけでした。
+
+```json:packages/common/terraform/project.json
+"assemble": {
+  "executor": "nx:noop",
+  "dependsOn": [
+    "@nx-plugin-demo/event-store:assemble",
+    "@nx-plugin-demo/organizer-api:assemble",
+    "@nx-plugin-demo/organizer-api:operations",
+    "@nx-plugin-demo/attendee-api:assemble",
+    "@nx-plugin-demo/attendee-api:operations",
+    "@nx-plugin-demo/portal:assemble",
+    "@nx-plugin-demo/workers:assemble"
+  ]
+}
+```
+
+そして `infra` 側は、この1点だけを掴んでいます。
+
+```json:packages/infra/project.json
+"assemble": { "dependsOn": ["@nx-plugin-demo/terraform:assemble"] },
+"plan":     { "dependsOn": ["init", "validate", "^validate", "assemble"] },
+"apply":    { "dependsOn": ["plan"] }
+```
+
+つまり、**アプリとインフラの連携はプロジェクトグラフではなくタスクグラフに存在する**、というのがこの構成の肝でした。`pnpm nx apply infra` とだけ打てば、TS のコンパイル → Lambda の bundle → フロントのビルド → `terraform init` → `validate` → `plan` → `apply` まで1コマンドで揃うのは、この `dependsOn` の連鎖のおかげです。
+
+## 5-3. 2回目はどこまでスキップされるか
+では実際に2回目を走らせてみます。何も変えずに叩き直すと、こうなりました。
+
+```sh
+$ pnpm nx run-many --target typecheck --all   # 1回目
+  Run duration: 14.7s     Cache: 0/15 hit (0%)
+
+$ pnpm nx run-many --target typecheck --all   # 2回目
+  Run duration: 257ms     Cache: 15/15 hit (100%)
+```
+
+14.7秒が257ミリ秒になりました。Terraform しか書いていないと馴染みのない世界ですが、これがキャッシュの効き方です。
+
+成果物の集約側も見てみます。
+
+```sh
+$ pnpm nx run @nx-plugin-demo/terraform:assemble   # 1回目
+  Run duration: 5.7s      Cache: 6/19 hit (32%)
+
+$ pnpm nx run @nx-plugin-demo/terraform:assemble   # 2回目
+  Run duration: 188ms     Cache: 13/19 hit (68%)
+```
+
+2回目でも 68% 止まりなのが気になったのですが、これは**残りの6タスクが `nx:noop`（キャッシュ対象外）**だからでした。実質的な作業である `compile` / `bundle` は 13/13 すべてキャッシュから復元されています。
+
+## 5-4. Nx が再実行しても、AWS に伝わるとは限らない
+ここが個人的に一番面白かったところです。
+
+`packages/domain/src/rules.ts` に**コメントを1行足しただけ**で測ってみます。
+
+```sh
+$ printf '\n// touched\n' >> packages/domain/src/rules.ts
+$ pnpm nx run @nx-plugin-demo/terraform:assemble
+  Run duration: 4.9s      Cache: 1/19 hit (5%)
+```
+
+Nx から見れば `domain` の入力ハッシュが変わったので、**18タスクが再実行**されます。ところが出てきた成果物はこうでした。
+
+| 成果物 | 変更前 | 変更後 |
+| --- | --- | --- |
+| `dist/packages/portal/bundle` | `c4a2e44f82bd13ae` | `c4a2e44f82bd13ae` |
+| `dist/packages/workers/bundle` | `fb9eec1ded83b3c9` | `fb9eec1ded83b3c9` |
+| `dist/packages/organizer-api/bundle/index.js` | `3a04d9f572c8b0c5` | `3a04d9f572c8b0c5` |
+
+**1バイトも変わっていません。** コメントはコンパイルで落ちるので当たり前といえば当たり前なのですが、「Nx のキャッシュミス」と「AWS への変更」がまったく別物だということが、そのまま数字に出ています。
+
+では**業務ルールを本当に変えた**らどうなるか。`canCheckIn()` が返す理由文字列を書き換えてみます。
+
+| 成果物 | 変更前 | 変更後 | 判定 |
+| --- | --- | --- | --- |
+| `organizer-api/bundle/index.js` | `3a04d9f5…` | `6083fe3c…` | 🔄 変わった |
+| `attendee-api/bundle/index.js` | `ef54b686…` | `ef54b686…` | 据え置き |
+| `portal/bundle` | `c4a2e44f…` | `c4a2e44f…` | 据え置き |
+| `workers/bundle` | `fb9eec1d…` | `fb9eec1d…` | 据え置き |
+
+**4つのデプロイ対象のうち、変わったのは運営 API のバンドルだけ**でした。チェックインは運営側の操作なので、参加者 API・フロント・ストリーム集計のバンドルにはこの分岐が入っていない、という当たり前の結果です。バンドラのツリーシェイキングが、そのまま「デプロイ範囲」を決めていることになります。
+
+（ちなみにこの変更を `git checkout` で戻すと、Nx はキャッシュから**元のバイト列をそのまま復元**します。ハッシュも元の値に戻りました）
+
+そして、この「バイト列が変わったか」を Terraform 側がどう拾っているのか。生成モジュールを読んでみると、**すべてハッシュ経由**でした。
+
+- **Lambda**：`archive_file` の `output_sha256` を S3 のキーに、`output_base64sha256` を `source_code_hash` に使っています。バンドルが同じなら**キーごと同じ**なので、S3 へのアップロードすら発生しません
+- **フロント**：`null_resource` の trigger に、bundle 配下の全ファイルの SHA を畳み込んだ `directory_hash` を入れています
+- **CloudFront の無効化**：アップロードか `runtime-config.json` の `etag` が変わったときだけ `/*` を発行します
+
+つまり**フロントを触っていない更新では、無効化リクエストが飛びません**。CloudFront の無効化には月1,000パスの無料枠があるので、毎回 `/*` を撃たない設計になっているのは地味に効きます。
+
+差分検知が**3層に分かれていて、それぞれ独立している**と理解すると分かりやすいと思います。
+
+| 層 | 何を見るか | 判断すること |
+| --- | --- | --- |
+| ① Nx | ターゲットの `inputs` のハッシュ | タスクを再実行するか、キャッシュから復元するか |
+| ② 成果物 | `dist/packages/*/bundle` のバイト列 | Terraform に渡る中身が変わったか |
+| ③ Terraform | state と `triggers` / `source_code_hash` / `etag` | AWS のリソースを更新するか |
+
+**①が動いても②が動くとは限らない**、というのがコメント1行の実験でした。
+
+## 5-5. 落とし穴：`nx affected --target=apply` は空になる
+CI を組もうとして最初に踏んだのがこれです。
+
+`nx show projects --affected` に `--files=` を渡すと、**ワーキングツリーを汚さずに**「このファイルを変えたら何が affected か」を問い合わせられます。これが便利なので多用しました。
+
+```sh
+$ pnpm nx show projects --affected --files=packages/domain/src/rules.ts --withTarget=build
+["domain","organizer-api","portal","attendee-api","event-store","workers"]
+
+$ pnpm nx show projects --affected --files=packages/domain/src/rules.ts --withTarget=apply
+[]
+```
+
+**ビルドは6プロジェクトが affected なのに、`apply` は空**です。5-1 で見たとおり `infra` のプロジェクト依存は `terraform` と `ops-alarms` だけなので、`domain` を変えても `infra` は affected になりません。
+
+TF 側を触れば、もちろん affected になります。
+
+```sh
+$ pnpm nx show projects --affected --files=packages/ops-alarms/src/main.tf --withTarget=apply
+["infra"]
+```
+
+同じことは、実行されるタスク数を数えても見えます。
+
+```sh
+pnpm nx affected -t <target> --files=<path> --graph=stdout
+```
+
+| 変更したファイル | ターゲット | 実行されるタスク数 |
+| --- | --- | --- |
+| `packages/domain/src/rules.ts` | `build` | 41 |
+| `packages/domain/src/rules.ts` | `apply` | **0** |
+| `packages/ops-alarms/src/main.tf` | `apply` | 28 |
+
+ドメインを変えると41タスクがビルドされるのに、デプロイは1タスクも動きません。`nx affected --target=apply` だけで CI を組むと、**アプリのコードを変えたときにデプロイが走らない**ことになります。
+
+対処は2つかなと思っています。
+
+1. **デプロイは `affected` を使わず、常に `pnpm nx apply infra` を打つ**（私はこっち推しです）。5-2 で見たとおりタスクグラフ側が bundle まで引き連れてくれますし、変更がなければ Nx がキャッシュを返すのでビルドはやり直しになりません。実際の差分判定は Terraform の state が持っているので、アプリの再デプロイも起きません
+2. `packages/infra/project.json` に `implicitDependencies` を足して、プロジェクトグラフ側にも依存を生やす。ただし「TF を触っていないのに `infra:checkov` / `infra:validate` まで affected になる」副作用があるので、1のほうが素直だと思います
+
+:::message
+**「アプリを触っていない `apply` なら差分ゼロ」とは限らない**点だけ注意です。
+runtime config を配る `appconfig-deployment` モジュールの `null_resource` が `triggers` に `timestamp()` を持っているため、plan のたびに置き換え対象になります。各モジュールが書き出す runtime-config の断片を毎回集約し直すための意図的な設計なのですが、その結果 AppConfig まわりの差分は毎回残る**見込み**です（ここはコードから読み取った予測で、実 AWS では未確認です）。
+「アプリの再デプロイは起きない」であって「plan が空になる」ではない、と理解しておくのが良さそうです。
+:::
+
+# 6. 実際に使ってみて感じたメリット
 ここまでやってみて、Terraform で使う場合のメリットを整理します。
 
-## 5-1. `nx affected` がインフラまで効く
+## 6-1. 変更の影響範囲を、アプリからインフラまで1つのグラフで追える
 これが最大だと思っています。
 
 今回の構成だと、`packages/domain` の業務ルールを2つの API とワーカーとフロントが参照していて、そのすべてを `packages/infra` がデプロイします。なので、
 
-- **ドメインを1行変える** → 2 API + ワーカー + フロント + infra が再検証対象になる
-- **UI だけ変える** → フロントと infra だけ
+- **ドメインを1行変える** → 2 API + ワーカー + フロント + `event-store` が再ビルドされ、その成果物が `infra` の `plan` に流れ込む
+- **UI だけ変える** → フロントの再ビルドだけが流れ込む
 
-という粒度で `pnpm nx affected --target build` が効きます。
+という粒度で `pnpm nx affected --target build` と `pnpm nx apply infra` が効きます。
 
 Terraform 単体でも「変更したディレクトリだけ CI を回す」ことはできますが、**アプリ側の TypeScript の変更が Terraform の再検証に繋がる**のは、グラフを持っている Nx ならではだなと感じました。ここを自前の CI スクリプトで組もうとすると、だいたい破綻するので。。
 
-## 5-2. Terraform の品質ゲートが最初から揃っている
+ただし5章で書いたとおり、この繋がりはプロジェクトグラフではなく**タスクグラフ側**にあります。`nx affected --target=apply` では拾えないので、デプロイは `affected` を使わず `nx apply infra` を打つ、という使い分けが要ります。
+
+## 6-2. Terraform の品質ゲートが最初から揃っている
 `fmt` / `validate` / `test` / `checkov` が、**生成時点で Nx ターゲットとして定義済み**です。
 
 Checkov は生成モジュール込みで **211 リソース / failed 0**（skip 55）で通りました。ゼロから Terraform を書き始めると、この手のスキャンを入れるのは後回しになりがちだと思うので、最初から通る状態で始められるのは大きいです。
@@ -510,7 +764,7 @@ Checkov は生成モジュール込みで **211 リソース / failed 0**（skip
 
 `terraform test` もテンプレートがあるので、「モジュールにテストを書く」習慣に入りやすいです。
 
-## 5-3. CDK 版との対応が素直
+## 6-3. CDK 版との対応が素直
 検証しながら作った対応表です。CDK 版の情報を読みながら Terraform で実装するときに便利だと思うので、置いておきます。
 
 | CDK 版 | Terraform 版 |
@@ -523,7 +777,7 @@ Checkov は生成モジュール込みで **211 リソース / failed 0**（skip
 | `RuntimeConfig.ensure(this).set(...)` | `core/runtime-config/entry` モジュール |
 | `table.grantReadWriteData(fn)` | `additional_iam_policy_statements` に IAM ステートメントを渡す |
 
-## 5-4. AI コーディングエージェントとの相性が良い
+## 6-4. AI コーディングエージェントとの相性が良い
 ワークスペースを生成した時点で、Claude Code / Codex / Cursor / Kiro / Gemini CLI / GitHub Copilot 向けの **MCP サーバー設定がすでに入っています**（`.mcp.json` など）。いずれも `npx -y @aws/nx-plugin-mcp` を起動する設定です。
 
 これが入っていると、エージェントに
@@ -535,15 +789,15 @@ IaC は Terraform。
 
 と投げるだけで、**使えるジェネレータとそのオプションを MCP 経由で調べたうえで `nx g` を実行してくれます**。エージェントに一から Terraform を書かせるより、ジェネレータを呼ばせたほうが圧倒的に安定するので、これはかなり実用的だと感じました。
 
-# 6. ハマったところ・注意点
+# 7. ハマったところ・注意点
 良いところばかり書くのもフェアではないので、詰まったところも正直に書いておきます。
 
-## 6-1. `terraform fmt` が再帰しない
+## 7-1. `terraform fmt` が再帰しない
 `packages/common/terraform` の `format` ターゲットは、`src` 直下で `terraform fmt -check -diff` を実行するだけでした。`terraform fmt` は**デフォルトで非再帰**なので、モジュール本体がある `src/app/**` と `src/core/**` が lint 対象から外れます。
 
 実際、生成物の中に未フォーマットのファイルがありました。`-recursive` を足して直しています。
 
-## 6-2. `build` に `validate` が入っていない
+## 7-2. `build` に `validate` が入っていない
 生成時点の `build` が呼ぶのは `format` / `checkov` / `test` だけで、**`validate` は `plan` からしか呼ばれません**。
 
 変数名や出力名の参照ミスは `validate` でしか捕まらないので、私は `build` の `dependsOn` に足しました。
@@ -564,7 +818,7 @@ IaC は Terraform。
 
 なお `validate` を全体に回した結果は、ルートモジュール + 生成モジュール10個 + 自作モジュールまで含めて `Success!` でした。参照ミスはゼロです。
 
-## 6-3. 生成モジュールに手を入れる場面はある
+## 7-3. 生成モジュールに手を入れる場面はある
 今回は DynamoDB Streams を使いたかったのですが、**生成される `core/dynamodb` モジュールはストリームに未対応**でした。なので `stream_enabled` / `stream_view_type` 変数と `table_stream_arn` 出力を自分で足しています。
 
 ```hcl:packages/infra/src/main.tf
@@ -604,46 +858,10 @@ resource "aws_lambda_event_source_mapping" "registrations" {
 「生成されたコードは自分のもの」というのは自由度が高い反面、**どこを触ったか分からなくなると migration で詰む**ので、ここは運用でカバーするしかないかなと思っています。
 :::
 
-## 6-4. AWS プロバイダ 6.x の deprecation 警告
+## 7-4. AWS プロバイダ 6.x の deprecation 警告
 生成物の中に `data.aws_region.current.id` を使っている箇所があり、AWS プロバイダ 6.x では非推奨（`.region` を使う）で警告が3件出ました。
 
 面白いことに、**同じファイルの他の箇所はすでに `.region` に直っていて、一部だけ取り残されている**状態でした。バージョンが上がれば直ると思いますが、`validate` を通したときに警告が出ても慌てなくて大丈夫です。
-
-## 6-5. 隔離環境だと `registry.terraform.io` の許可が要る
-これは Terraform を使う以上どうしようもない話ですが、`validate` も `test` も内部で `terraform init` を走らせるため、**Terraform Registry に到達できないと何も実行できません**。
-
-Claude Code のクラウド環境のように送信先ドメインが制限された環境で動かす場合は、`registry.terraform.io`（と、バージョン確認用の `checkpoint-api.hashicorp.com`）の許可が必要でした。プロバイダのバイナリ自体は `releases.hashicorp.com` から来るので、追加が必要なのはこの2つだけです。
-
-:::details Terraform バイナリ自体も入っていない場合
-Claude Code のクラウド環境には `terraform` バイナリがプリインストールされていませんでした。Node / pnpm / uv / docker クライアントは入っています。
-
-```sh
-curl -sSL -o /tmp/tf.zip https://releases.hashicorp.com/terraform/1.14.5/terraform_1.14.5_linux_amd64.zip
-unzip -o -q /tmp/tf.zip -d /tmp && install -m755 /tmp/terraform /usr/local/bin/terraform
-terraform --version
-```
-:::
-
-## 6-6. `.terraform.lock.hcl` はコミットして良い
-`validate` / `test` が `terraform init` を走らせるので、初回実行後に `.terraform.lock.hcl` が未追跡ファイルとして現れます。ジェネレータは `init` を一度も通していない状態のリポジトリを作るんですね。
-
-Terraform の推奨どおりコミットして問題ありませんでした。プラットフォーム依存も心配していたのですが、レジストリ経由で入れたロックファイルには署名付きチェックサム（`zh:`）が全プラットフォーム分記録されるので、Linux で生成したものでも macOS の `init` は通ります。
-
-とはいえ明示しておくほうが確実なので、4プラットフォーム分を記録した状態でコミットしました。
-
-```sh
-cd packages/infra/src
-terraform providers lock \
-  -platform=linux_amd64 -platform=linux_arm64 \
-  -platform=darwin_arm64 -platform=darwin_amd64
-```
-
-## 6-7. `packages/common/terraform` の `validate` / `test` は実質ノーオペ
-細かい話ですが、`packages/common/terraform` の `src` 直下には `.tf` が1つもありません（モジュールは `src/app/**` と `src/core/**` にあります）。なので `terraform validate` は空ディレクトリを見て `Success!` を返してしまいます。
-
-実際の検証カバレッジは `infra:validate` 側から来ています（ルートモジュールが参照するモジュールは、モジュールツリーを辿って検証されるため）。この経路で唯一届かなかったのは、どこからも参照していない `core/asset-ecr` だけでした。
-
-`fmt` が `-recursive` を必要としたのと同じ、**「ターゲットが `src` 直下しか見ない」問題**ですね。気になる方はモジュールごとに回す形に変えると良いと思います。
 
 # 最後に
 Terraform で Nx Plugin for AWS を使ってみて、**「Terraform は一級市民として扱われている」**というのが率直な感想です。
