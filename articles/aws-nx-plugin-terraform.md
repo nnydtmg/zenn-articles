@@ -28,6 +28,48 @@ https://aws.amazon.com/about-aws/whats-new/2026/09/nx-plugin-for-aws/
 
 検証に使ったリポジトリは公開していないのですが、実際に動かしたコードはこの記事の中に載せていきます。
 
+## 題材：社内勉強会の受付・チェックインシステム
+ジェネレータを一通り試したかったので、題材として**社内勉強会の受付・チェックインシステム**を作りました。この記事では `EventDesk` と呼びます。
+
+登場人物は2人だけです。
+
+- **運営**：イベントを作って公開し、当日は受付でチェックインする
+- **参加者**：公開されたイベントを見て申し込む
+
+この2つを **API ごと分けて**、「定員を超えていないか」「申し込み済みか」「すでにチェックイン済みか」といった業務ルールだけを共有ライブラリに置く、という「モノレポにする意味がある」構成にしています。この共有ライブラリを1行変えたときに、アプリとインフラがどこまで連動するのか。ここが5章の主題になります。
+
+AWS 側の構成はこんな形です。
+
+```mermaid
+flowchart TB
+    User["運営 / 参加者"] --> Portal["CloudFront + S3<br/>portal（React）"]
+    Cognito["Cognito<br/>User Pool / Identity Pool"] -. 認証 .- Portal
+    Portal --> OrgApi["API Gateway + Lambda<br/>organizer-api（運営用）"]
+    Portal --> AttApi["API Gateway + Lambda<br/>attendee-api（参加者用）"]
+    OrgApi --> Table["DynamoDB<br/>event-store"]
+    AttApi --> Table
+    Table -- DynamoDB Streams --> Worker["Lambda<br/>checkin-projector（集計）"]
+    Worker -- 集計結果を書き戻す --> Table
+```
+
+業務ルールを持つ `domain` は、2つの API とワーカーの**どちらからも参照される TypeScript のライブラリ**です。図には出てきませんが、5章の主役になります。
+
+Nx のプロジェクトと役割の対応はこうなります。**以降の章では、この名前がそのまま出てきます**ので、ここだけ頭に入れていただけると読みやすいかと思います。
+
+| プロジェクト | 役割 |
+| --- | --- |
+| `domain` | 業務ルール（`canCheckIn()` など）を持つ共有ライブラリ。ほぼ全員が参照する |
+| `event-store` | DynamoDB 単一テーブル（ElectroDB）。イベント / 申し込み / チェックインを格納 |
+| `organizer-api` | **運営用**の tRPC API。イベント作成・公開・チェックイン |
+| `attendee-api` | **参加者用**の tRPC API。イベント一覧・申し込み |
+| `workers`（`checkin-projector`） | DynamoDB Streams を購読して申込数・チェックイン数を集計する Lambda |
+| `portal` | React + Cognito 認証のポータル。運営画面と参加者画面の両方 |
+| `infra` | Terraform のルートモジュール。上記すべてをデプロイする |
+| `ops-alarms` | 自作の Terraform モジュール（Lambda の CloudWatch アラーム） |
+| `common/terraform` | ジェネレータが吐いた Terraform モジュールが溜まっていく場所 |
+
+ワークスペース名は `nx-plugin-demo` なので Nx 上のプロジェクト名は `@nx-plugin-demo/organizer-api` のようになり、Terraform 側のリソース名の接頭辞（`name_prefix`）には `eventdesk-` を使っています。以降のコード例に出てくる `eventdesk` は、この題材の名前だと思ってください。
+
 記事の流れはこんな感じです。インフラ寄りの方に読んでいただきたいので、**そもそも Nx が何なのか**にページを割いています。
 
 1. Nx Plugin for AWS 1.0 のリリース紹介
@@ -119,7 +161,7 @@ Nx Plugin for AWS には `terraform#project` というジェネレータがあ�
 ![Nx のプロジェクトグラフ（ワークスペース全体）](https://static.zenn.studio/user-upload/613a5d187aba-20260913.png)
 *`pnpm nx graph` の Projects タブ。TypeScript のプロジェクトも Terraform のプロジェクトも同じグラフに載る*
 
-右上にいる `infra`（Terraform のルートモジュール）と `terraform` / `ops-alarms` が、`domain` や `organizer-api` と**同じ一枚のグラフに並んでいる**のが分かるかと思います。
+はじめに挙げた EventDesk のプロジェクトが、そのまま並んでいます。右上にいる `infra`（Terraform のルートモジュール）と `terraform` / `ops-alarms` が、`domain` や `organizer-api` と**同じ一枚のグラフに並んでいる**のが分かるかと思います。
 
 ただし、この図をよく見ると `infra` から出ている矢印は2本しかありません。**「アプリを変えたら Terraform の plan をやり直す」という繋がりが、実はこのグラフには載っていない**んですね。ここは私も実際に測ってみるまで勘違いしていたので、5章でじっくり書きます。
 
@@ -153,7 +195,7 @@ export default {
 :::
 
 ## 3-2. ジェネレータでプロジェクトを積んでいく
-今回は題材として、社内勉強会の受付・チェックインシステムを作りました。運営用と参加者用で API を分けて、ドメインロジックを共有する、という「モノレポにする意味がある」構成にしています。
+冒頭で挙げた EventDesk（運営 API / 参加者 API / 集計ワーカー / ポータル）を、ジェネレータだけで積み上げていきます。
 
 実際に叩いたコマンドがこちらです。
 
@@ -164,16 +206,16 @@ pnpm nx g @aws/nx-plugin:ts#project domain
 # DynamoDB（単一テーブル + ElectroDB）
 pnpm nx g @aws/nx-plugin:ts#dynamodb event-store --framework=electrodb --infra=dynamodb
 
-# tRPC API を2つ（IAM 認証 / API Gateway REST + Lambda）
+# tRPC API を2つ：運営用と参加者用（IAM 認証 / API Gateway REST + Lambda）
 pnpm nx g @aws/nx-plugin:ts#api organizer-api --framework=trpc --auth=iam --infra=rest-lambda --integrationPattern=isolated
 pnpm nx g @aws/nx-plugin:ts#api attendee-api  --framework=trpc --auth=iam --infra=rest-lambda --integrationPattern=isolated
 
-# 非同期ワーカー（DynamoDB Streams を購読する Lambda）
+# 非同期ワーカー（DynamoDB Streams を購読して申込数・チェックイン数を集計する Lambda）
 pnpm nx g @aws/nx-plugin:ts#project workers
 pnpm nx g @aws/nx-plugin:ts#lambda-function --project=workers --name=checkin-projector \
   --event=DynamoDBStreamSchema --infra=lambda
 
-# React ポータル + Cognito 認証
+# React ポータル + Cognito 認証（運営画面と参加者画面）
 pnpm nx g @aws/nx-plugin:ts#website portal --ux=shadcn --tailwind=true --tanstackRouter=true --infra=cloudfront-s3
 pnpm nx g @aws/nx-plugin:ts#website#auth --project=portal --allowSignup=false
 
@@ -366,7 +408,7 @@ terraform {
 ## 3-7. 自作モジュールも Nx プロジェクトにできる
 `terraform#project --type=library` で作ったプロジェクトは、**自分で書く再利用モジュール**の置き場になります。
 
-今回は Lambda のエラー / スロットリングを監視する CloudWatch アラームのモジュールを作ってみました。
+今回は Lambda のエラー / スロットリングを監視する CloudWatch アラームのモジュールを作ってみました。EventDesk の Lambda（2つの API + 集計ワーカー）をまとめて見るためのものです。
 
 ```hcl:packages/ops-alarms/src/main.tf
 variable "function_names" {
@@ -522,6 +564,8 @@ portal -> attendee-api, common-shadcn, organizer-api, domain
 infra -> terraform, ops-alarms
 ```
 
+冒頭の表と見比べると、`domain` をほぼ全員が参照していて、`portal` が両方の API を叩いている、という EventDesk の構造がそのまま出ているのが分かります（`common-shadcn` だけ表にありませんが、これは `ts#website --ux=shadcn` が一緒に作る UI コンポーネントのライブラリです）。
+
 ブラウザを開けない CI や隔離環境でも依存が確認できるので、これはかなり重宝しました。
 
 さて、ここで**最後の行**です。
@@ -669,7 +713,7 @@ Nx から見れば `domain` の入力ハッシュが変わったので、**18タ
 | `portal/bundle` | `c4a2e44f…` | `c4a2e44f…` | 据え置き |
 | `workers/bundle` | `fb9eec1d…` | `fb9eec1d…` | 据え置き |
 
-**4つのデプロイ対象のうち、変わったのは運営 API のバンドルだけ**でした。チェックインは運営側の操作なので、参加者 API・フロント・ストリーム集計のバンドルにはこの分岐が入っていない、という当たり前の結果です。バンドラのツリーシェイキングが、そのまま「デプロイ範囲」を決めていることになります。
+**4つのデプロイ対象のうち、変わったのは運営 API（`organizer-api`）のバンドルだけ**でした。チェックインは運営側の操作なので、参加者 API・ポータル・集計ワーカーのバンドルにはこの分岐が入っていない、という当たり前の結果です。バンドラのツリーシェイキングが、そのまま「デプロイ範囲」を決めていることになります。
 
 （ちなみにこの変更を `git checkout` で戻すと、Nx はキャッシュから**元のバイト列をそのまま復元**します。ハッシュも元の値に戻りました）
 
@@ -746,10 +790,12 @@ runtime config を配る `appconfig-deployment` モジュールの `null_resourc
 
 今回の構成だと、`packages/domain` の業務ルールを2つの API とワーカーとフロントが参照していて、そのすべてを `packages/infra` がデプロイします。なので、
 
-- **ドメインを1行変える** → 2 API + ワーカー + フロント + `event-store` が再ビルドされ、その成果物が `infra` の `plan` に流れ込む
-- **UI だけ変える** → フロントの再ビルドだけが流れ込む
+- **`domain` の業務ルールを変える** → 2つの API + ワーカー + ポータル + `event-store` が再ビルドされ、その成果物が `infra` の `plan` に流れ込む
+- **`portal` の UI だけ変える** → ポータルの再ビルドだけが流れ込む
 
 という粒度で `pnpm nx affected --target build` と `pnpm nx apply infra` が効きます。
+
+（再ビルドされることと、成果物のバイト列が変わることは別物です。5-4 で見たとおり、再ビルドされても中身が同じなら AWS には何も伝わりません）
 
 Terraform 単体でも「変更したディレクトリだけ CI を回す」ことはできますが、**アプリ側の TypeScript の変更が Terraform の再検証に繋がる**のは、グラフを持っている Nx ならではだなと感じました。ここを自前の CI スクリプトで組もうとすると、だいたい破綻するので。。
 
@@ -774,7 +820,7 @@ Checkov は生成モジュール込みで **211 リソース / failed 0**（skip
 | `nx bootstrap infra`（CDK Bootstrap） | `nx bootstrap infra`（tfstate 用 S3 バケット作成） |
 | `nx deploy-sandbox infra` | `nx apply infra`（`plan` に依存） |
 | `nx destroy-sandbox infra` | `nx destroy infra` |
-| `RuntimeConfig.ensure(this).set(...)` | `core/runtime-config/entry` モジュール |
+| `RuntimeConfig.ensure(this).set(...)` | `core/runtime-config` のモジュール群（ルートモジュールで順番に宣言する。3-5 参照） |
 | `table.grantReadWriteData(fn)` | `additional_iam_policy_statements` に IAM ステートメントを渡す |
 
 ## 6-4. AI コーディングエージェントとの相性が良い
