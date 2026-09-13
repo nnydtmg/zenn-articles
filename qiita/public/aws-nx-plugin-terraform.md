@@ -1,16 +1,19 @@
 ---
 title: Nx Plugin for AWS を Terraform で使ってみた 〜インフラ寄りの人向けの Nx 入門つき〜
-private: false
 tags:
-  - aws
-  - terraform
+  - AWS
+  - Terraform
   - nx
-  - typescript
-  - iac
-updated_at: '2026-09-13T12:55:02.846Z'
-id: null
+  - TypeScript
+  - IaC
+private: false
+updated_at: '2026-09-13T21:55:12+09:00'
+id: 5c7476bd92f8fa02e9a7
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 # はじめに
 みなさん、`Nx` って触ったことありますか？
