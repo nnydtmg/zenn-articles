@@ -116,7 +116,6 @@ Nx Plugin for AWS には `terraform#project` というジェネレータがあ�
 
 実際に `pnpm nx graph` を叩くと、こんなグラフが出てきます。
 
-<!-- TODO: 画像を images/aws-nx-plugin-terraform/ に配置してパスを差し替える -->
 ![Nx のプロジェクトグラフ（ワークスペース全体）](/images/aws-nx-plugin-terraform/01-nx-graph-projects.png)
 *`pnpm nx graph` の Projects タブ。TypeScript のプロジェクトも Terraform のプロジェクトも同じグラフに載る*
 
@@ -533,7 +532,6 @@ infra -> terraform, ops-alarms
 
 `infra` が依存しているのは、vendoring された `terraform`（生成モジュール置き場）と、自作の `ops-alarms` の**2つだけ**でした。グラフ上で `infra` に絞ると、もっとはっきりします。
 
-<!-- TODO: 画像を images/aws-nx-plugin-terraform/ に配置してパスを差し替える -->
 ![infra のプロジェクト依存だけを表示したところ](/images/aws-nx-plugin-terraform/02-nx-graph-infra-deps.png)
 *`./packages (3 / 9)` — 9 プロジェクトのうち、infra に繋がっているのは terraform と ops-alarms だけ*
 
@@ -552,7 +550,6 @@ pnpm nx run @nx-plugin-demo/infra:apply --graph=stdout
 
 `stdout` の代わりにファイル名を渡すとブラウザで見られるので、そちらを貼るとこんな形です。
 
-<!-- TODO: 画像を images/aws-nx-plugin-terraform/ に配置してパスを差し替える -->
 ![nx apply infra のタスクグラフ](/images/aws-nx-plugin-terraform/03-nx-graph-tasks-apply.png)
 *Tasks タブで `apply` を選んだところ。最上段の `infra:apply:dev` から `domain:compile` まで1本に繋がっている*
 
