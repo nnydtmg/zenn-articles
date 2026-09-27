@@ -1,16 +1,19 @@
 ---
 title: AIで開発が速くなる今、インフラエンジニアが12FAから考えたいこと
-private: false
 tags:
   - 12factor
   - infrastructure
   - devops
-  - ai
-  - cloudnative
-updated_at: '2026-09-27T08:17:46.590Z'
-id: null
+  - AI
+  - CloudNative
+private: false
+updated_at: '2026-09-27T17:17:56+09:00'
+id: 2fab0961015b98879132
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## はじめに
