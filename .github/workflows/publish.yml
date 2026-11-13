@@ -6,6 +6,7 @@ on:
       - main
   workflow_dispatch:
 
+# zenn-qiita-sync が変換結果を main へ commit / push するため contents: write が必要
 permissions:
   contents: write
 
@@ -19,16 +20,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
       - name: Check for published article changes
         id: check
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
-          BEFORE="${{ github.event.before }}"
-          AFTER="${{ github.sha }}"
-
           if [[ -z "$BEFORE" ]] || [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
             CHANGED=$(git diff --name-only HEAD~1 HEAD | grep "^articles/.*\.md$" || true)
           else
@@ -46,6 +47,7 @@ jobs:
 
       - name: Run
         if: steps.check.outputs.has_published == 'true'
-        uses: C-Naoki/zenn-qiita-sync@main
+        # サードパーティ Action のためコミット SHA で固定（main ブランチ 2026-11-13 時点の HEAD）
+        uses: C-Naoki/zenn-qiita-sync@af751d37a2c96c60fc23d07e5d785a670ea8705a # main
         with:
           qiita-token: ${{ secrets.QIITA_TOKEN }}
