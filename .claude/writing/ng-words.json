@@ -1,0 +1,23 @@
+{
+  "$comment": "scripts/check-writing.mjs が読み込む自動チェック用の語彙リスト。level は must(MUST FIX) / should(Nice-to-have) / info(Nitpicking)。行末に <!-- writing-check-ignore --> を付けた行はチェックしない。追加するときは feedback-log.md にも記録する。",
+  "rules": [
+    { "id": "dash", "pattern": "——|—", "level": "must", "reason": "ダッシュは前後の論理関係（対比・理由・補足）を読者に推測させる", "suggest": "「ではなく」「なぜなら」などの言葉か、読点・句点に置き換える" },
+    { "id": "shizukani", "pattern": "静かに", "level": "should", "reason": "音と関係ない文脈の「静かに」は意味が曖昧", "suggest": "徐々に／気づかないうちに／エラーを出さずに" },
+    { "id": "sasaru", "pattern": "刺さ(る|った|り|ら)", "level": "should", "reason": "共感・納得・耳が痛いのどれか分からない", "suggest": "共感した／納得した／耳が痛かった" },
+    { "id": "kiku", "pattern": "(?<![有無])効(く|いて|いた|か|き|け)", "level": "should", "reason": "何がどう変わるのかが書かれていない", "suggest": "効果がある／改善する／減らす（何が・どう変わるかを書く）" },
+    { "id": "shitai", "pattern": "の正体", "level": "should", "reason": "AI の決め台詞の典型。原因と結果の混同も起きやすい", "suggest": "原因／中身／実体" },
+    { "id": "shikomu", "pattern": "仕込(む|んで|んだ|み|ま)", "level": "should", "reason": "こなれた感じを出そうとする言葉", "suggest": "設定する／入れておく" },
+    { "id": "te-ga-tomaru", "pattern": "手が止ま", "level": "should", "reason": "誰が何をできなくなったのかが分からない", "suggest": "作業が止まる（主語と状況を書く）" },
+    { "id": "gekiteki", "pattern": "劇的(に|な)", "level": "should", "reason": "効果を盛る言葉", "suggest": "具体的な数値や変化を書く" },
+    { "id": "chimeiteki", "pattern": "致命的", "level": "should", "reason": "実際の影響と言葉の強さが合っていないことが多い", "suggest": "何がどれだけ困るのかを書く" },
+    { "id": "ichigeki", "pattern": "一撃で", "level": "should", "reason": "こなれた感じを出そうとする言葉", "suggest": "1 回で／1 コマンドで" },
+    { "id": "fumu", "pattern": "(事故|穴)を踏", "level": "should", "reason": "日本語で定着していない組み合わせ", "suggest": "問題に当たる／不具合に遭遇する" },
+    { "id": "ato-de-kiku", "pattern": "後で効|後ほど効|あとで効", "level": "should", "reason": "参照先のない予告になりやすい", "suggest": "その場で関係を書くか、参照先の節を書く" },
+    { "id": "sengen", "pattern": "結論から言うと|正直に言うと|正直に言います|ここが重要です|ここで重要なのは", "level": "info", "reason": "宣言で重要さを演出している", "suggest": "宣言を消して、重要な理由を本文で書く" },
+    { "id": "sono-zentei", "pattern": "その前提|この構造が", "level": "info", "reason": "指している内容が直前に書かれていないことが多い", "suggest": "指している内容が直前にあるか確認し、なければ具体的に書く" },
+    { "id": "tokasu", "pattern": "(ルール|境界|責任)が溶け", "level": "info", "reason": "比喩の意味が曖昧", "suggest": "曖昧になる／形骸化する" },
+    { "id": "sodateru", "pattern": "(台帳|ドキュメント|仕組み|ルール)を育て", "level": "info", "reason": "比喩の意味が曖昧", "suggest": "整備する／追記していく" },
+    { "id": "kochira-link", "pattern": "\\[(こちら|ここ|これ)\\]\\(", "level": "should", "reason": "リンク先が分からず、再利用時に情報が失われる", "suggest": "リンク先のページ名をリンクテキストにする" },
+    { "id": "ex-dot", "pattern": "\\bex\\.\\s", "level": "info", "reason": "ex は「前の」の意味。例示は e.g.", "suggest": "e.g. または「例:」" }
+  ]
+}
