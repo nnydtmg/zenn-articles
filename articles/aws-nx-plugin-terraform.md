@@ -577,7 +577,7 @@ infra -> terraform, ops-alarms
 `infra` が依存しているのは、vendoring された `terraform`（生成モジュール置き場）と、自作の `ops-alarms` の**2つだけ**でした。グラフ上で `infra` に絞ると、もっとはっきりします。
 
 ![infra のプロジェクト依存だけを表示したところ](https://static.zenn.studio/user-upload/a9e67b0b0672-20260913.png)
-*`./packages (3 / 9)`：9 プロジェクトのうち、infra に繋がっているのは terraform と ops-alarms だけ*
+*`./packages (3 / 9)` — 9 プロジェクトのうち、infra に繋がっているのは terraform と ops-alarms だけ*
 
 **`portal` や `organizer-api` への矢印がありません。** これは図の省略ではなく、Nx のプロジェクトグラフが本当にそうなっています。
 
