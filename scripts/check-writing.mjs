@@ -106,7 +106,13 @@ function checkFile(path) {
       return;
     }
 
-    const line = maskInline(raw);
+    // 引用ブロックは他者の原文なので表現のチェック対象外（style-rules.md / japanese-check.md の方針）
+    if (/^\s*>/.test(raw)) {
+      flushParagraph();
+      return;
+    }
+    // 表のセルが「—」だけのもの（該当なしの意味）は文中のダッシュとして扱わない
+    const line = maskInline(raw).replace(/\|(\s*)(——|—)(\s*)(?=\|)/g, (m) => " ".repeat(m.length));
     // 「- [リンク](url) — 説明」「- **ラベル** — 説明」のようなリストの区切りは、文中のダッシュより軽く扱う
     const labelDash = /^\s*([-*+]|\d+\.) +(\[[^\]]*\]\([^)]*\)|\*\*[^*]+\*\*|`[^`]+`)\s*(——|—)/.exec(raw);
     for (const r of compiled) {
