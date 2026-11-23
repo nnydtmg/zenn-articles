@@ -88,9 +88,11 @@ function checkFile(path) {
       if (i > 0 && raw.trim() === "---") inFront = false;
       return;
     }
-    const fenceMatch = raw.match(/^\s*(```|~~~)/);
+    // 開始フェンスの文字と長さを覚え、同じ文字で同じ長さ以上の行だけを終了とみなす
+    const fenceMatch = raw.match(/^\s*(`{3,}|~{3,})/);
     if (fence) {
-      if (fenceMatch && fenceMatch[1] === fence) fence = null;
+      if (fenceMatch && fenceMatch[1][0] === fence[0] && fenceMatch[1].length >= fence.length
+        && raw.trim() === fenceMatch[1]) fence = null;
       checkIp(raw, no, add);
       return;
     }
